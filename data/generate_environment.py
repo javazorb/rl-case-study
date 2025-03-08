@@ -33,7 +33,7 @@ def visualize_and_save_env(environment, save_path):
     plt.close()
 
 
-def generate_and_save_environments(num_environments=100, save_directory='dataset/data', visualize=True):
+def generate_and_save_environments(num_environments=100, save_directory='data/envs', visualize=True):
     if not os.path.exists(save_directory):
         os.makedirs(save_directory)
     for i in tqdm(range(num_environments), desc='Generating Environments', unit='Environment'):
@@ -41,10 +41,10 @@ def generate_and_save_environments(num_environments=100, save_directory='dataset
         save_path = os.path.join(save_directory, f'environment{i}.npy')
         np.save(save_path, environment)
         if visualize:
-            visualize_and_save_env(environment, save_path=os.path.join('dataset/images', f'environment{i}.png'))
+            visualize_and_save_env(environment, save_path=os.path.join('data/images', f'environment{i}.png'))
 
 
-def load_environments(directory='dataset/data'):
+def load_environments(directory='data/envs'):
     environments = []
     for filename in os.listdir(directory):
         if filename.endswith('.npy'):

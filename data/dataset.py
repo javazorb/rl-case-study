@@ -9,7 +9,7 @@ import pickle
 
 
 def save_dataset(dataset, name):
-    with open('dataset' + os.sep + name + '.pkl', 'wb') as file:
+    with open('data' + os.sep + name + '.pkl', 'wb') as file:
         pickle.dump(dataset, file)
 
 
@@ -138,10 +138,14 @@ def calculate_optimal_trajectory(environment, env_index):
     plt.imshow(environment, cmap='gray', origin='lower', vmin=0, vmax=255)
     plt.axis('off')
     #plt.show()
-    plt.savefig(os.path.join('dataset/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight', pad_inches=0)
+    if not os.path.exists('data/images/optimal_paths'):
+        os.makedirs('data/images/optimal_paths')
+    plt.savefig(os.path.join('data/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight', pad_inches=0)
     plt.close()
 
-    save_path = os.path.join('dataset/data/optimal_paths', f'environment{env_index}.npy')
+    if not os.path.exists('data/optimal_paths'):
+        os.makedirs('data/optimal_paths')
+    save_path = os.path.join('data/optimal_paths' + os.sep, f'environment{env_index}.npy')
     np.save(save_path, environment)
 
     return environment, agent_positions
