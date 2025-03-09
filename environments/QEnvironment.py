@@ -1,6 +1,6 @@
 import numpy as np
 import config
-import dataset.dataset as dataset
+import data.dataset as dataset
 
 
 class QEnvironment:
