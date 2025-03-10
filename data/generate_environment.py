@@ -41,6 +41,8 @@ def generate_and_save_environments(num_environments=100, save_directory='data/en
         save_path = os.path.join(save_directory, f'environment{i}.npy')
         np.save(save_path, environment)
         if visualize:
+            if not os.path.exists('data/images'):
+                os.makedirs('data/images')
             visualize_and_save_env(environment, save_path=os.path.join('data/images', f'environment{i}.png'))
 
 
