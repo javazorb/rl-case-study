@@ -1,5 +1,6 @@
 import torch
 from enum import Enum
+import os
 
 RANDOM_SEED = 42
 ENV_SIZE = 60
@@ -44,3 +45,12 @@ def get_device():
         print(f'Using mps: {torch.backends.mps.is_available()}')
         device = torch.device("mps")
     return device
+
+def save_model(model, name, path=os.getcwd() + os.sep + 'trained_models' + os.sep):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    path_model = os.path.join(path, f'{name}_model.pt')
+    path_state_dict = os.path.join(path, f'{name}_state_dict.pt')
+    torch.save(model.state_dict(), path_state_dict)
+    torch.save(model, path_model)
+    print(f'Model saved to {path_model}')
