@@ -1,3 +1,4 @@
+import torch
 from enum import Enum
 
 RANDOM_SEED = 42
@@ -33,3 +34,13 @@ class Actions(Enum):
     RUN_LEFT = 1
     JUMP = 2
     JUMP_RIGHT = 3
+
+
+def get_device():
+    use_cuda = torch.cuda.is_available()
+    print(f'Using cuda: {use_cuda}')
+    device = torch.device("cuda:0" if use_cuda else "cpu")
+    if torch.backends.mps.is_available():
+        print(f'Using mps: {torch.backends.mps.is_available()}')
+        device = torch.device("mps")
+    return device
