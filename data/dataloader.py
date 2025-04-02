@@ -13,4 +13,4 @@ class EnvironmentDataset(Dataset):
     def __getitem__(self, idx):
         env = self.data[0][idx]
         path = np.array(self.data[1][idx])
-        return (env, path)
+        return env, path
