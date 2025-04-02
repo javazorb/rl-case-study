@@ -47,7 +47,8 @@ def generate_and_save_environments(num_environments=100, save_directory='data/en
 
 def load_environments(directory='data/envs'):
     environments = []
-    for filename in os.listdir(directory):
+    #for filename in os.listdir(directory):
+    for filename in sorted(os.listdir(directory), key=lambda x:  int(''.join(filter(str.isdigit, x))) ): # Sorting by number
         if filename.endswith('.npy'):
             environment = np.load(os.path.join(directory, filename))
             environments.append(environment)

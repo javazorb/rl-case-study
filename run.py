@@ -1,21 +1,27 @@
 import json
 import os
-
+import numpy as np
 import data.generate_environment as generate_data
 import data.dataset as data
 import tqdm
 
 
 def run():
-    generate_data.generate_and_save_environments(num_environments=1000)
+    #envs = data_gen()
     envs = generate_data.load_environments()
-    save_optimal_paths(envs)
     optimal_paths = load_optimal_paths()
-    training_data, validation_data, testing_data = data.train_test_val_split(generate_data.load_environments(), optimal_paths)
+    training_data, validation_data, testing_data = data.train_test_val_split(envs, optimal_paths)
     train_data, test_data, val_data = data.train_test_val_split(environments=envs, optimal_paths=optimal_paths)
     data.save_dataset(train_data, 'train_data')
     data.save_dataset(test_data, 'test_data')
     data.save_dataset(val_data, 'val_data')
+
+
+def data_gen():
+    #generate_data.generate_and_save_environments(num_environments=1000)
+    envs = generate_data.load_environments()
+    save_optimal_paths(envs)
+    return envs
 
 
 def save_optimal_paths(envs):
