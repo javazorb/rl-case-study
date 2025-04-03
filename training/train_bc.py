@@ -9,8 +9,10 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
     model.to(device)
     best_val_loss = float('inf')
     stop_counter = 0
-    train_loader = DataLoader(train_data, batch_size=config.BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_data, batch_size=config.BATCH_SIZE, shuffle=True)
+    #train_loader = DataLoader(train_data, batch_size=config.BATCH_SIZE, shuffle=True)
+    #val_loader = DataLoader(val_data, batch_size=config.BATCH_SIZE, shuffle=True)
+    train_loader = DataLoader(train_data, **config.PARAMS)
+    val_loader = DataLoader(val_data, **config.PARAMS)
 
     for epoch in range(config.MAX_EPOCHS):
         model.train()
@@ -19,7 +21,8 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
         for environments, actions in tqdm(train_loader, desc=f"Training Epoch: {epoch + 1}/{config.MAX_EPOCHS}"):
             environments = environments.to(device)
             actions = actions.to(device)
-
+            # TODO now batch size is 10 meaning environments contains 10 60x60 envs and action 10 opt_paths with length 60
+            # TODO reduce batch to value pairs for training eg a slice of env for example at position 15 and using action on pos 15 to let bc train on slices
             optimizer.zero_grad()
             output = model(environments)
             output = output.view(-1, len(config.Actions))
