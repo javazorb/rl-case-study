@@ -24,7 +24,8 @@ def run():
     train_set = EnvironmentDataset(train_data)
     val_set = EnvironmentDataset(val_data)
     test_set = EnvironmentDataset(test_data)
-    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set, nn.CrossEntropyLoss(), optim.Adam(behavior_cloning.parameters(), lr=0.001))
+    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
+                   optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
 
 
 def sets_generation():
