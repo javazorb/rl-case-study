@@ -150,3 +150,65 @@ def calculate_optimal_trajectory(environment, env_index):
 
     return environment, agent_positions
 
+
+def move_agent(pos, action):
+    x, y = pos
+    if action == Actions.RUN_RIGHT.value:
+        return x + 1, y
+    elif action == Actions.RUN_LEFT.value:
+        return x - 1, y
+    elif action == Actions.JUMP.value:
+        return x, y + 1
+    elif action == Actions.JUMP_RIGHT.value:
+        return x + 1, y + 1 # +1 on y because else the y pos gets into region < 0 when jumping
+    else:
+        return pos
+
+def reconstruct_path(environment, actions):
+    floor_height = get_env_floor_height(environment)
+    start_pos = (0, floor_height + 1)
+    path = [start_pos]
+    pos = start_pos
+    for action in actions:
+        pos = move_agent(pos, action)
+        x, y = pos
+        if action == Actions.RUN_RIGHT.value and y > floor_height + 1: # Account for gravity after jumping
+            pos = x, y - 1
+        path.append(pos)
+    return path
+
+
+def extract_window(env, start_pos, window_len):
+    row, col = start_pos
+    half = window_len // 2
+    start_idx = col - half
+    end_idx = col + half + 1
+    pad_left = max(0, -start_idx)
+    pad_right = max(0, end_idx - env.shape[1])
+    #env_window = env[:, start_idx:end_idx]
+    slice_start = max(start_idx, 0)
+    slice_end = min(end_idx, env.shape[1])
+    env_window = env[:, slice_start:slice_end] # slicing column vectors
+    env_padded = np.pad(env_window, pad_width=((0, 0), (pad_left, pad_right)), mode='constant', constant_values=0)
+    return env_padded
+
+
+def extract_env_windows(environments, agent_start_positions, window_len = 5):
+    batch = []
+    for idx, env in enumerate(environments):
+        start_pos = agent_start_positions[idx]
+        batch.append(extract_window(env, start_pos, window_len))
+    return batch
+
+
+def update_agent_pos(agent_start_positions, expert_paths):
+    new_positions = []
+    for i, pos in enumerate(agent_start_positions):
+        expert_path = expert_paths[i]
+        path_len = len(expert_path)
+        curr_pos = pos
+        closest_idx = np.argmin([np.linalg.norm(np.array(expert_path[j]) - np.array(curr_pos)) for j in range(path_len)])
+        nex_pos_idx = min(closest_idx + 1, path_len - 1)
+        next_pos = expert_path[nex_pos_idx]
+        new_positions.append(next_pos)
+    return new_positions
