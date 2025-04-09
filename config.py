@@ -16,9 +16,10 @@ AGENT_START_POS = 0
 AGENT_END_POS = 59
 AGENT = 130
 MAX_JUMP_HEIGHT = 20
-
+WINDOW_LEN = 5
+NUM_STEPS_ENV = WINDOW_LEN * 2
 BATCH_SIZE = 10
-PARAMS = {'batch_size': BATCH_SIZE, 'shuffle': True, 'num_workers': 6}
+PARAMS = {'batch_size': BATCH_SIZE, 'shuffle': True, 'num_workers': 0}
 MAX_EPOCHS = 100
 MAX_STEPS = 100  # Maximum steps per episode
 EPS_DECAY = 0.99  # Decay rate for epsilon in epsilon-greedy strategy
