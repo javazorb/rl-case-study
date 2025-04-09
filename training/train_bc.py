@@ -4,7 +4,6 @@ from torch.utils.data import DataLoader
 import config
 import numpy as np
 import data.dataset as dataset
-import time
 
 
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=5):
@@ -103,3 +102,43 @@ def loss(model, device, val_loader, criterion):
         val_loss += batch_loss
     val_loss /= len(val_loader)
     return val_loss
+
+
+def test_accuracy(model, device, test_data):
+    model.to(device)
+    model.eval()  # Set the model to evaluation mode
+    correct = 0
+    total = 0
+    test_loader = DataLoader(test_data, **config.PARAMS)
+    with torch.no_grad():  # No need to track gradients during inference
+        for environments, actions in test_loader:
+            expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
+                            zip(environments, actions)]
+            agent_start_positions = []
+
+            for expert_path in expert_paths:
+                start_idx = np.random.randint(config.ENV_SIZE - config.NUM_STEPS_ENV)
+                agent_start_positions.append(expert_path[start_idx])
+            for step_idx in range(config.NUM_STEPS_ENV):
+                # Prepare the test batch
+                state_batch = dataset.extract_env_windows(environments, agent_start_positions, config.WINDOW_LEN)
+                state_batch = np.asarray(state_batch, dtype=np.int64)
+                state_batch = torch.from_numpy(state_batch).float().to(device)
+                state_batch = state_batch.unsqueeze(1)  # Ensure the correct shape [batch_size, 1, 60, 5]
+
+                # Get the predicted actions from the model
+                predicted_actions = model(state_batch)
+
+                # Assuming predicted_actions is a tensor of probabilities, apply argmax to get the predicted class
+                predicted_classes = torch.argmax(predicted_actions, dim=1)
+                action_idxs = [x for x, y in agent_start_positions]
+                correct_actions = [actions[i][action_idxs[i]] for i in range(len(action_idxs))]
+                # Convert actions to a tensor on the same device
+                correct_actions = torch.LongTensor(correct_actions).to(device)
+                agent_start_positions = dataset.update_agent_pos(agent_start_positions, expert_paths)
+                # Calculate how many predictions are correct
+                correct += (predicted_classes == correct_actions).sum().item()
+                total += correct_actions.size(0)
+
+    accuracy = correct / total  # Calculate accuracy
+    return accuracy

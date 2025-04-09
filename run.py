@@ -3,6 +3,8 @@ import os
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader
+
 import config
 import data.generate_environment as generate_data
 import data.dataset as data
@@ -12,6 +14,14 @@ import models.bc_model as bc_model
 import models.q_model as q_model
 import models.bcq_model as bcq_model
 from data.dataloader import EnvironmentDataset
+import torch
+
+
+def load_model(name, model):
+    path = f'./trained_models/{name}.pt'
+    model = model
+    model.load_state_dict(torch.load(path))
+    return model
 
 
 def run():
@@ -24,8 +34,9 @@ def run():
     train_set = EnvironmentDataset(train_data)
     val_set = EnvironmentDataset(val_data)
     test_set = EnvironmentDataset(test_data)
-    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
-                   optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
+    #train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
+    #               optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
+    test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
 
 
 def sets_generation():
@@ -58,6 +69,12 @@ def load_optimal_paths():
         data = json.load(file)
     _, paths = map(list, zip(*data))
     return paths
+
+
+def test_accuracy(model, test_set, name='final_BC_state_dict'):
+    best_bc_model = load_model(name, model)
+    acc = train_bc.test_accuracy(best_bc_model, config.get_device(), test_set)
+    print(f'Test Accuracy: {acc}')
 
 
 if __name__ == '__main__':
