@@ -15,6 +15,7 @@ import models.q_model as q_model
 import models.bcq_model as bcq_model
 from data.dataloader import EnvironmentDataset
 import torch
+import models.hyperparameter as hyperparameter
 
 
 def load_model(name, model):
@@ -34,8 +35,12 @@ def run():
     train_set = EnvironmentDataset(train_data)
     val_set = EnvironmentDataset(val_data)
     test_set = EnvironmentDataset(test_data)
+    #best_params = hyperparameter.search_hyperparameters(behavior_cloning, learning_rates=[0.001, 0.0005, 0.0001],
+    #                                                   batch_sizes=[32, 64, 128], optimizers=[optim.Adam, optim.SGD],
+    #                                                   train_set=train_set, val_set=val_set)
+    #print(best_params)             optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
     #train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
-    #               optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
+    #               optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
     test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
 
 

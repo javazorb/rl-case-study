@@ -6,7 +6,7 @@ import numpy as np
 import data.dataset as dataset
 
 
-def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=5):
+def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10):
     np.random.seed(config.RANDOM_SEED)
     model.to(device)
     best_val_loss = float('inf')
