@@ -57,7 +57,7 @@ class QEnvironment:
             next_position = new_position
             self.done = True
         else:
-            reward = 0
+            reward = 1
             next_position = new_position
 
         self.current_position = next_position
