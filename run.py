@@ -10,6 +10,7 @@ import data.generate_environment as generate_data
 import data.dataset as data
 import tqdm
 import training.train_bc as train_bc
+import training.train_q as train_q
 import models.bc_model as bc_model
 import models.q_model as q_model
 import models.bcq_model as bcq_model
@@ -41,7 +42,11 @@ def run():
     #print(best_params)             optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
     #train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
     #               optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
-    test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
+
+    #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
+    q_agent = q_model.QModel()
+    train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.001), epsilon=0.1)
+
 
 
 def sets_generation():

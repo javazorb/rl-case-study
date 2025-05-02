@@ -4,14 +4,15 @@ import data.dataset as dataset
 
 
 class QEnvironment:
-    def __init__(self, size=config.ENV_SIZE, environment=None):
+    def __init__(self, size=config.ENV_SIZE, environment=None, start_pos=None):
         if environment is not None:
             environment = np.squeeze(environment)
         self.environment = environment
         self.size = size
         floor_height = dataset.get_env_floor_height(self.environment)
-        self.goal_position = (floor_height + 1, config.ENV_SIZE - 1)
-        self.start_position = (floor_height + 1, 0)
+        self.goal_position = (config.ENV_SIZE - 1, floor_height + 1)
+        #self.start_position = (floor_height + 1, 0)
+        self.start_position = start_pos if start_pos is not None else (0, floor_height + 1)
         self.current_position = self.start_position
         self.state = np.zeros((1, self.size, self.size), dtype=np.float32)
         self.done = False
@@ -19,10 +20,10 @@ class QEnvironment:
     def reset(self):
         self.state.fill(0)
         floor_height = dataset.get_env_floor_height(self.environment)
-        self.start_position = (floor_height + 1, 0)
+        self.start_position = (0, floor_height + 1)
         self.current_position = self.start_position
         self.done = False
-        self.goal_position = (floor_height + 1, self.size - 1)
+        self.goal_position = (self.size - 1, floor_height + 1)
         self.state[0, floor_height, :] = self.environment[floor_height, :]
         self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # Mark goal
         self.state[0, self.start_position[0], self.start_position[1]] = 1  # Mark start
@@ -34,19 +35,27 @@ class QEnvironment:
             self.done = True
             return self.current_position, reward, self.done
         x, y = self.current_position
+        #if action == 0:  # RUN_RIGHT
+        #    new_position = (x, min(y + 1, self.size - 1))
+        #elif action == 1:  # RUN_LEFT
+        #    new_position = (x, max(y - 1, 0))
+        #elif action == 2:  # JUMP
+        #    new_position = (min(x + 1, self.size - 1), y)
+        #elif action == 3:  # JUMP_RIGHT
+        #    new_position = (min(x + 1, self.size - 1), min(y + 1, self.size - 1))
         if action == 0:  # RUN_RIGHT
-            new_position = (x, min(y + 1, self.size - 1))
+            new_position = (x + 1, y)
         elif action == 1:  # RUN_LEFT
-            new_position = (x, max(y - 1, 0))
+            new_position = (max(x - 1, 0), y)
         elif action == 2:  # JUMP
-            new_position = (min(x + 1, self.size - 1), y)
+            new_position = (x, y + 1)
         elif action == 3:  # JUMP_RIGHT
-            new_position = (min(x + 1, self.size - 1), min(y + 1, self.size - 1))
+            new_position = (x + 1, y + 1)
 
         new_x, new_y = new_position
         # Check if the agent is above the floor and if the next action is not jumping
-        if x > dataset.get_env_floor_height(self.environment) + 1 and action not in [2, 3]:
-            new_x = min(x - 1, dataset.get_env_floor_height(self.environment) + 1)  # Move down, simulate gravity
+        if y > dataset.get_env_floor_height(self.environment) + 1 and action not in [2, 3]:
+            new_y = min(y - 1, dataset.get_env_floor_height(self.environment) + 1)  # Move down, simulate gravity
             new_position = (new_x, new_y)
 
         if self.environment[new_x, new_y] == 255:
