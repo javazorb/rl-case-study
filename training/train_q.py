@@ -159,7 +159,7 @@ def evaluate_model(model, device, val_loader, num_episodes=5):
 
             for _ in range(config.NUM_STEPS_ENV):
                 state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
-                action = epsilon_greedy_action(model, state_tensor, epsilon=0.0, device=device)  # greedy
+                action = epsilon_greedy_action(model, state_tensor, epsilon=0.0)  # greedy
                 _, reward, done = curr_env.step(action)
                 cumulative_reward += reward
                 if done:
