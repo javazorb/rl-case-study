@@ -108,14 +108,14 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
             best_val_loss = val_loss
             stop_counter = 0
             best_model = model
-            config.save_model(model, name=f"BC_{epoch + 1}")
+            config.save_model(model, name=f"Q_{epoch + 1}")
         else:
             stop_counter += 1
 
         if stop_counter >= early_stopping:
             epochs_ran = epoch + 1
             break
-    config.save_model(best_model, name="final_BC")
+    config.save_model(best_model, name="final_Q")
     print(f'Final training loss: {train_loss / epochs_ran:.4f} after {epochs_ran} epochs')
 
 
