@@ -31,7 +31,7 @@ class QEnvironment:
 
     def step(self, action):
         if self.current_position == self.goal_position:
-            reward = 100
+            reward = 10
             self.done = True
             return self.current_position, reward, self.done
         x, y = self.current_position
@@ -62,7 +62,7 @@ class QEnvironment:
             reward = -1  # Hit obstacle
             next_position = self.current_position
         elif new_position == self.goal_position:
-            reward = 100
+            reward = 10
             next_position = new_position
             self.done = True
         else:

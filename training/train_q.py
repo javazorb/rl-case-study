@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 import config
 import numpy as np
 import data.dataset as dataset
+import copy
 from environments.QEnvironment import QEnvironment
 
 
@@ -39,7 +40,6 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
         model.train()
         batch_loss = 0
         for environments, actions in tqdm(train_loader):
-            mini_batch_loss = 0
             expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                             zip(environments, actions)]
             agent_start_positions = []
@@ -49,7 +49,6 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
             for env_id in range(config.BATCH_SIZE):
                 curr_env = QEnvironment(environment=environments[env_id].numpy(), size=config.ENV_SIZE,
                                         start_pos=agent_start_positions[env_id])
-                env_reward = 0
                 for step in range(config.NUM_STEPS_ENV):
                     state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
                     action = epsilon_greedy_action(model, state_tensor, epsilon)
@@ -82,32 +81,15 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
 
                     if done:
                         break
-
-                    #next_state = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
-                    #with torch.no_grad():
-                    #    next_max_Q = model(next_state).max().item()
-                    #    target_Q = torch.tensor(reward + config.GAMMA * next_max_Q).to(device)
-                    #predicted_Q = torch.max(model(next_state))
-                    #step_loss = criterion(predicted_Q, target_Q)
-                    #optimizer.zero_grad()
-                    #step_loss.backward()
-                    #optimizer.step()
-                    #mini_batch_loss += step_loss.item()
-                    #if done:
-                    #    break
-                #curr_env.reset()
-                #mini_batch_loss = mini_batch_loss / config.NUM_STEPS_ENV
-                #batch_loss += mini_batch_loss
-            #batch_loss /= config.BATCH_SIZE
-        batch_loss /= max(1, len(replay_buffer))
+        batch_loss /= max(1, config.BATCH_SIZE)
         train_loss += batch_loss
         val_loss = loss(model, device, val_loader, criterion)
-        print(f'Validation loss: {val_loss.item()} at epoch {epoch + 1}/{config.MAX_EPOCHS}')
+        print(f'Validation loss: {val_loss} at epoch {epoch + 1}/{config.MAX_EPOCHS}')
         if val_loss < best_val_loss:
-            print(f'New best validation loss: {val_loss.item()}\n old best validation loss: {best_val_loss}')
+            print(f'New best validation loss: {val_loss}\n old best validation loss: {best_val_loss}')
             best_val_loss = val_loss
             stop_counter = 0
-            best_model = model
+            best_model = copy.deepcopy(model)
             config.save_model(model, name=f"Q_{epoch + 1}")
         else:
             stop_counter += 1
@@ -133,15 +115,38 @@ def epsilon_greedy_action(model, state, epsilon=0.1):
 
 def loss(model, device, val_loader, criterion):
     model.eval()
+    model.to(device)
     total_loss = 0
+    count = 0
     with torch.no_grad():
-        for states, actions in val_loader: #TODO change structure to resemble train method
-            states = states.to(device)
-            actions = actions.to(device)
-            q_values = model(states)
-            predicted = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-            total_loss += predicted.sum().item()
-    return total_loss / len(val_loader.dataset)
+        for environments, actions in val_loader:
+            for env, env_actions in zip(environments, actions):
+                environment = env.numpy()
+                expert_path = dataset.reconstruct_path(env.numpy(), env_actions.numpy())
+                start_idx = np.random.randint(config.ENV_SIZE - config.NUM_STEPS_ENV)
+                start_pos = expert_path[start_idx]
+                curr_env = QEnvironment(environment=environment, size=config.ENV_SIZE, start_pos=start_pos)
+                curr_env.reset()
+                steps_loss = 0
+                steps_taken = 0
+                for action_gt in env_actions[:config.NUM_STEPS_ENV]:
+                    state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
+                    q_values = model(state_tensor)
+                    action_gt = int(action_gt.item())
+                    predicted_q = q_values[0, action_gt]
+                    next_state, reward, done = curr_env.step(action_gt)
+                    target_q = torch.tensor([reward], dtype=torch.float32).to(device)
+                    step_loss = criterion(predicted_q.unsqueeze(0), target_q)
+                    steps_loss += step_loss.item()
+                    steps_taken += 1
+
+                    if done:
+                        break
+                if steps_taken > 0:
+                    total_loss += steps_loss / steps_taken
+                    count += 1
+    return total_loss / max(1, count)
+
 
 def evaluate_model(model, device, val_loader, num_episodes=5):
     model.eval()
