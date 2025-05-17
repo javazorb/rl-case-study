@@ -8,6 +8,7 @@ import numpy as np
 import data.dataset as dataset
 import copy
 from environments.QEnvironment import QEnvironment
+import matplotlib.pyplot as plt
 
 
 class ReplayBuffer:
@@ -35,10 +36,11 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
     best_val_loss = float('inf')
     train_loader = DataLoader(train_data, **config.PARAMS)
     val_loader = DataLoader(val_data, **config.PARAMS)
-
+    # Maybe TODO warm start for DQN with filling replay buffer with expert actions before training
     for epoch in range(config.MAX_EPOCHS):
         model.train()
         batch_loss = 0
+        epsilon = max(0.9 - epoch * 0.05, 0.1) #epsilon decay
         for environments, actions in tqdm(train_loader):
             expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                             zip(environments, actions)]
@@ -149,6 +151,7 @@ def loss(model, device, val_loader, criterion):
 
 
 def evaluate_model(model, device, val_loader, num_episodes=5):
+    model.to(device)
     model.eval()
     total_rewards = []
 
@@ -181,3 +184,76 @@ def evaluate_model(model, device, val_loader, num_episodes=5):
     print(f'Average validation reward over {num_episodes} episodes: {avg_reward:.2f}')
     return avg_reward
 
+
+def visualize_agent_path(env, path,  save_path=None, title=None):
+    fig, ax = plt.subplots(figsize=(6, 6))
+    plt.axis('off')
+    ax.imshow(env, cmap='gray', origin='lower', vmin=0, vmax=255)
+    path_x = [p[0] for p in path]  # col
+    path_y = [p[1] for p in path]  # row
+    ax.plot(path_x, path_y, color='blue', marker='o', linewidth=2, label="Agent Path")
+    if title is not None:
+        ax.set_title(title)
+    else:
+        ax.set_title("Agent Path Over Environment")
+    ax.axis('off')
+    plt.legend()
+    plt.show()
+
+
+import os
+
+def evaluate_model_and_vis(model, device, val_loader, num_episodes=5, save_dir=None):
+    model.to(device)
+    model.eval()
+    total_rewards = []
+
+    if save_dir and not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    episode_idx = 0
+
+    for environments, actions in val_loader:
+        for env, act in zip(environments, actions):
+            environment = env.numpy()
+            expert_path = dataset.reconstruct_path(environment, act.numpy())
+            start_pos = expert_path[0]
+
+            curr_env = QEnvironment(environment=environment, size=config.ENV_SIZE, start_pos=start_pos)
+            curr_env.reset()
+            cumulative_reward = 0
+
+            # Track agent positions
+            agent_path = [curr_env.current_position]
+
+            for _ in range(config.NUM_STEPS_ENV*5):
+                #visualize_agent_path(environment, agent_path, save_path=None,
+                #                     title=f"Episode {episode_idx} | Reward: {cumulative_reward}")
+                state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
+                action = epsilon_greedy_action(model, state_tensor, epsilon=0.0)  # greedy
+                _, reward, done = curr_env.step(action)
+                cumulative_reward += reward
+                print(f'Agent position: {curr_env.current_position}\t action chosen: {action}\t reward: {reward}')
+                agent_path.append(curr_env.current_position)
+                if done:
+                    break
+
+            total_rewards.append(cumulative_reward)
+
+            # Visualize and optionally save
+            if save_dir:
+                save_path = os.path.join(save_dir, f"episode_{episode_idx}.png")
+                visualize_agent_path(environment, agent_path, save_path=save_path,title=f"Episode {episode_idx} | Reward: {cumulative_reward}")
+            else:
+                visualize_agent_path(environment, agent_path, title=f"Episode {episode_idx} | Reward: {cumulative_reward}")
+
+            episode_idx += 1
+            if episode_idx >= num_episodes:
+                break
+
+        if episode_idx >= num_episodes:
+            break
+
+    avg_reward = np.mean(total_rewards)
+    print(f'Average validation reward over {num_episodes} episodes: {avg_reward:.2f}')
+    return avg_reward

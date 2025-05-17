@@ -45,9 +45,10 @@ def run():
 
     #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
     q_agent = q_model.QModel()
+    #q_agent = load_model('final_Q_state_dict', q_agent)
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
-    train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.001), epsilon=0.1)
-
+    train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.001))
+    train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 
 
 def sets_generation():
