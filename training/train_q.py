@@ -9,6 +9,7 @@ import data.dataset as dataset
 import copy
 from environments.QEnvironment import QEnvironment
 import matplotlib.pyplot as plt
+import sys
 
 
 class ReplayBuffer:
@@ -188,7 +189,7 @@ def evaluate_model(model, device, val_loader, num_episodes=5):
 def visualize_agent_path(env, path,  save_path=None, title=None):
     fig, ax = plt.subplots(figsize=(6, 6))
     plt.axis('off')
-    ax.imshow(env, cmap='gray', origin='lower', vmin=0, vmax=255)
+    ax.imshow(env, cmap='gray', origin='lowermainly evaluation adaptation', vmin=0, vmax=255)
     path_x = [p[0] for p in path]  # col
     path_y = [p[1] for p in path]  # row
     ax.plot(path_x, path_y, color='blue', marker='o', linewidth=2, label="Agent Path")
@@ -212,9 +213,20 @@ def evaluate_model_and_vis(model, device, val_loader, num_episodes=5, save_dir=N
         os.makedirs(save_dir)
 
     episode_idx = 0
-
+    np.set_printoptions(threshold=sys.maxsize)
     for environments, actions in val_loader:
         for env, act in zip(environments, actions):
+            #plt.imshow(env, cmap='gray', origin='lower')  # or origin='upper' if you prefer
+            #plt.title("Environment with (row, col) labels")
+
+            # BONUS: Overlay row,col labels
+            #for i in range(env.shape[0]):
+            #    for j in range(env.shape[1]):
+            #        plt.text(j, i, f'{i},{j}', ha='center', va='center', fontsize=6, color='red')
+
+            #plt.grid(False)
+            #plt.show()
+            print(env.numpy().tolist())
             environment = env.numpy()
             expert_path = dataset.reconstruct_path(environment, act.numpy())
             start_pos = expert_path[0]
@@ -232,6 +244,8 @@ def evaluate_model_and_vis(model, device, val_loader, num_episodes=5, save_dir=N
                 state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
                 action = epsilon_greedy_action(model, state_tensor, epsilon=0.0)  # greedy
                 _, reward, done = curr_env.step(action)
+                if reward == -1:
+                    print(f'Episode obstacle at? {env[curr_env.current_position[0]][curr_env.current_position[1]]}')
                 cumulative_reward += reward
                 print(f'Agent position: {curr_env.current_position}\t action chosen: {action}\t reward: {reward}')
                 agent_path.append(curr_env.current_position)
