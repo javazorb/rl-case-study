@@ -28,6 +28,29 @@ class ReplayBuffer:
         return len(self.buffer)
 
 
+def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_steps=config.NUM_STEPS_ENV, random_start=True):
+    agent_start_positions = []
+    max_traverse_steps = random.randint(1, config.WINDOW_LEN) * max_traverse_steps
+    for environments, actions in data_loader:
+        expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env,env_actions in zip(environments, actions)]
+        for expert_path in expert_paths:
+            start_idx = np.random.randint(config.ENV_SIZE - config.NUM_STEPS_ENV)
+            agent_start_positions.append(expert_path[start_idx])
+        for env, env_actions, expert_path, start_pos in zip(environments, actions, expert_paths, agent_start_positions):
+            if random_start:
+                curr_env = QEnvironment(environment=env.numpy(), size=config.ENV_SIZE, start_pos=start_pos)
+            else:
+                curr_env = QEnvironment(environment=env.numpy(), size=config.ENV_SIZE, start_pos=expert_path[0])
+            for action in env_actions[:max_traverse_steps]:
+                state = curr_env.state.copy()
+                next_state, reward, done = curr_env.step(action)
+                replay_buffer.push(curr_env.state.copy(), action, reward, next_state.copy(), done)
+                if done:
+                    break
+        print(f'Replay buffer size: {len(replay_buffer)} with max_traverse_steps: {max_traverse_steps}')
+        return len(replay_buffer)
+
+
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10, epsilon=0.1):
     np.random.seed(config.RANDOM_SEED)
     model.to(device)
@@ -38,6 +61,7 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
     train_loader = DataLoader(train_data, **config.PARAMS)
     val_loader = DataLoader(val_data, **config.PARAMS)
     # Maybe TODO warm start for DQN with filling replay buffer with expert actions before training
+    warm_start_replay_buffer(replay_buffer, train_loader, device)
     for epoch in range(config.MAX_EPOCHS):
         model.train()
         batch_loss = 0
@@ -189,7 +213,7 @@ def evaluate_model(model, device, val_loader, num_episodes=5):
 def visualize_agent_path(env, path,  save_path=None, title=None):
     fig, ax = plt.subplots(figsize=(6, 6))
     plt.axis('off')
-    ax.imshow(env, cmap='gray', origin='lowermainly evaluation adaptation', vmin=0, vmax=255)
+    ax.imshow(env, cmap='gray', origin='lower', vmin=0, vmax=255)
     path_x = [p[0] for p in path]  # col
     path_y = [p[1] for p in path]  # row
     ax.plot(path_x, path_y, color='blue', marker='o', linewidth=2, label="Agent Path")

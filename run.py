@@ -17,6 +17,7 @@ import models.bcq_model as bcq_model
 from data.dataloader import EnvironmentDataset
 import torch
 import models.hyperparameter as hyperparameter
+from training.train_q import ReplayBuffer
 
 
 def load_model(name, model):
@@ -45,10 +46,11 @@ def run():
 
     #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
     q_agent = q_model.QModel()
-    q_agent = load_model('final_Q_state_dict', q_agent)
+    #q_agent = load_model('final_Q_state_dict', q_agent)
+    buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
     #train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.SmoothL1Loss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))
-    train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
+    train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=1)
 
 
 def sets_generation():
