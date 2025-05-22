@@ -133,15 +133,15 @@ class QEnvironment:
         new_x, new_y = x, y
 
         # Actions: 0 = run right (↓), 1 = run left (↑), 2 = jump (→), 3 = jump right (↘)
-        if action == 0:  # Run right
-            new_y += 1 #+
+        if action == 0:  # Run right # TODO first change to adapt to expert_path behaviour
+            new_x += 1 #+
         elif action == 1:  # Run left
-            new_y -= 1 #-
+            new_x -= 1 #-
         elif action == 2:  # Jump
-            new_x -= 1 #-
+            new_y -= 1 #-
         elif action == 3:  # Jump right
-            new_x -= 1 #-
-            new_y += 1 #+
+            new_x += 1 #-
+            new_y -= 1 #+
 
         # Clip to environment bounds
         new_x = np.clip(new_x, 0, self.size - 1)
