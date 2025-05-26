@@ -42,13 +42,13 @@ def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_st
             else:
                 curr_env = QEnvironment(environment=env.numpy(), size=config.ENV_SIZE, start_pos=expert_path[0])
             for action in env_actions[:max_traverse_steps]:
-                state = curr_env.state.copy()
                 next_state, reward, done = curr_env.step(action)
                 replay_buffer.push(curr_env.state.copy(), action, reward, next_state.copy(), done)
+                curr_env.state = next_state.copy()
                 if done:
                     break
-        print(f'Replay buffer size: {len(replay_buffer)} with max_traverse_steps: {max_traverse_steps}')
-        return len(replay_buffer)
+    print(f'Replay buffer size: {len(replay_buffer)} with max_traverse_steps: {max_traverse_steps}')
+    return len(replay_buffer)
 
 
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10, epsilon=0.1):

@@ -138,10 +138,10 @@ class QEnvironment:
         elif action == 1:  # Run left
             new_x -= 1 #-
         elif action == 2:  # Jump
-            new_y -= 1 #-
+            new_y += 1 #-
         elif action == 3:  # Jump right
             new_x += 1 #-
-            new_y -= 1 #+
+            new_y += 1 #+
 
         # Clip to environment bounds
         new_x = np.clip(new_x, 0, self.size - 1)
@@ -163,39 +163,41 @@ class QEnvironment:
             reward = 0
 
             # Encourage forward motion (i.e., right/down direction toward goal)
-            if action == 1:
+            if action == 1 or action == 2:
                 reward -= 0.5  # discourage moving left (backwards)
             else:
-                reward += 0  # small reward for valid forward action
+                reward += 1  # small reward for valid forward action
 
             # Horizontal distance improvement bonus
-            old_dist = abs(self.goal_position[1] - y)
-            new_dist = abs(self.goal_position[1] - new_y)
+            #old_dist = abs(self.goal_position[1] - y)
+            #new_dist = abs(self.goal_position[1] - new_y)
+            old_dist = abs(self.goal_position[1] - x)
+            new_dist = abs(self.goal_position[1] - new_x)
             if new_dist < old_dist:
                 reward += 0.5
             elif new_dist > old_dist:
                 reward -= 0.5
 
             # Bonus if close vertically to goal
-            if abs(new_x - self.goal_position[0]) < 3:
-                reward += 0.5
+            #if abs(new_x - self.goal_position[0]) < 3:
+            #if abs(new_y - self.goal_position[1]) < 3:
+            #    reward += 0.5
 
             # Bonus for jumping over an obstacle
-            if self.environment[new_position[0] - 1, new_position[1]] == 255 and self.environment[new_position] == 0:
+            if self.environment[new_position[0] - 1, new_position[1] - 1] == 255 and self.environment[new_position] == 0:
                 reward += 2
 
         # Update position
         self.current_position = new_position
+        floor_height = dataset.get_env_floor_height(self.environment)
         # Gravity: apply only if not jumping (actions 0 and 1)
-        if action in [0, 1]:
-            below_x = self.current_position[0] - 1
-            if below_x >= 0 and self.environment[below_x, self.current_position[1]] == 0:
-                self.current_position = (below_x, self.current_position[1])
+        if y > dataset.get_env_floor_height(self.environment) and action not in [2, 3]:
+            new_y = min( new_y - 1, floor_height + 1)
+            new_position = (new_x, new_y)
         #print("Trying to move to:", (new_x, new_y), "→ Cell value:", self.environment[new_x, new_y])
 
         # Update state representation
         self.state.fill(0)
-        floor_height = dataset.get_env_floor_height(self.environment)
         self.state[0, floor_height, :] = self.environment[floor_height, :]
         self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # goal
         self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
