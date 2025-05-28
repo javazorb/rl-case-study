@@ -1,6 +1,7 @@
 import random
 from collections import deque
 import torch
+from jinja2 import environment
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 import config
@@ -52,7 +53,7 @@ def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_st
 
 
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10, epsilon=0.1):
-    np.random.seed(config.RANDOM_SEED)
+    np.random.seed(config.RANDOM_SEED) # TODO remodel to only jump action because jumping environment moves every state update by once to the rright
     model.to(device)
     replay_buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     stop_counter = 0

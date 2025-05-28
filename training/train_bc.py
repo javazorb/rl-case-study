@@ -8,7 +8,7 @@ import data.dataset as dataset
 
 
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10):
-    np.random.seed(config.RANDOM_SEED)
+    np.random.seed(config.RANDOM_SEED) # TODO remodel to only jump action because jumping environment moves every state update by once to the rright
     model.to(device)
     best_val_loss = float('inf')
     stop_counter = 0
