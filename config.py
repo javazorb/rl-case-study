@@ -36,8 +36,10 @@ NUM_REPLAY_SAMPLE = 32
 class Actions(Enum):
     #RUN_RIGHT = 0
     #RUN_LEFT = 1
-    JUMP = 2
+    #JUMP = 2
     #JUMP_RIGHT = 3
+    NOTHING = 0
+    JUMP = 3
 
 
 def get_device():
