@@ -38,10 +38,13 @@ def run():
     train_set = EnvironmentDataset(train_data)
     val_set = EnvironmentDataset(val_data)
     test_set = EnvironmentDataset(test_data)
-    bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss(), early_stopping=10)
-    bc_agent.train(train_set, val_set)
+    weights = torch.tensor([1.0, 3.0]).to(config.get_device())
+    #bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss(weight=weights), early_stopping=10)
+    #bc_agent.train(train_set, val_set)
+    #acc = train_bc.test_accuracy(bc_agent.model, config.get_device(), test_set)
+    #print(f'Test Accuracy: {acc}')
     #best_params = hyperparameter.search_hyperparameters(behavior_cloning, learning_rates=[0.001, 0.0005, 0.0001],
-    #                                                   batch_sizes=[32, 64, 128], optimizers=[optim.Adam, optim.SGD],
+    #                                                   batch_sizes=[10, 32, 64, 128], optimizers=[optim.Adam, optim.SGD],
     #                                                   train_set=train_set, val_set=val_set)
     #print(best_params)
     #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())

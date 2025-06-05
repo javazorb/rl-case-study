@@ -28,6 +28,7 @@ class BCAgent(BaseAgent):
         epochs_ran = 0
         best_val_loss = float('inf')
         best_model = self.model
+        valid_actions = torch.tensor([0, 3], device=self.device)
 
         for epoch in range(config.MAX_EPOCHS):
             epoch_loss = 0
@@ -41,16 +42,22 @@ class BCAgent(BaseAgent):
                     start_idx = np.random.randint(config.ENV_SIZE - config.NUM_STEPS_ENV)
                     agent_start_positions.append(expert_path[start_idx])
                 for step_idx in range(config.NUM_STEPS_ENV):
-                    state_batch = dataset.extract_env_windows(environments, agent_start_positions, config.WINDOW_LEN)
+                    state_batch = dataset.extract_env_windows(environments, agent_start_positions, config.NUM_STEPS_ENV)
                     state_batch = np.asarray(state_batch, dtype=np.int64)
                     state_batch = torch.from_numpy(state_batch).float().to(self.device)  # shape [1, 10, 60, 5]
                     state_batch = state_batch.unsqueeze(1)  # corrected shape [10, 1, 60, 5]
 
                     self.optimizer.zero_grad()
                     predicted_actions = self.model(state_batch.to(self.device))
+                    #predicted_actions = valid_actions[predicted_actions]
+                    #action_idxs = [x for x, y in agent_start_positions]
+                    #correct_actions = torch.tensor([actions[i][action_idxs[i]] for i in range(len(action_idxs))])
                     action_idxs = [x for x, y in agent_start_positions]
-                    correct_actions = [actions[i][action_idxs[i]] for i in range(len(action_idxs))]
-                    cur_loss = self.criterion(predicted_actions, torch.LongTensor(correct_actions).to(self.device))
+                    correct_actions_raw = [actions[i][action_idxs[i]] for i in range(len(action_idxs))]
+                    correct_actions = torch.tensor([valid_actions.tolist().index(a) for a in correct_actions_raw]).to(
+                        self.device)
+
+                    cur_loss = self.criterion(predicted_actions, correct_actions.to(self.device))
                     cur_loss.backward()
                     self.optimizer.step()
                     batch_loss = cur_loss.item()
@@ -97,7 +104,7 @@ class BCAgent(BaseAgent):
                     agent_start_positions.append(expert_path[start_idx])
 
                 for step_idx in range(config.NUM_STEPS_ENV):
-                    state_batch = dataset.extract_env_windows(environments, agent_start_positions, config.WINDOW_LEN)
+                    state_batch = dataset.extract_env_windows(environments, agent_start_positions, config.NUM_STEPS_ENV)
                     state_batch = np.asarray(state_batch, dtype=np.int64)
                     state_batch = torch.from_numpy(state_batch).float().to(self.device)
                     state_batch = state_batch.unsqueeze(1)  # Ensure the correct shape [batch_size, 1, 60, 5]
