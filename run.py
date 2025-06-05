@@ -17,6 +17,7 @@ import models.bcq_model as bcq_model
 from data.dataloader import EnvironmentDataset
 import torch
 import models.hyperparameter as hyperparameter
+from entitites.BCAgent import BCAgent
 from training.train_q import ReplayBuffer
 
 
@@ -37,20 +38,23 @@ def run():
     train_set = EnvironmentDataset(train_data)
     val_set = EnvironmentDataset(val_data)
     test_set = EnvironmentDataset(test_data)
+    bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss(), early_stopping=10)
+    bc_agent.train(train_set, val_set)
     #best_params = hyperparameter.search_hyperparameters(behavior_cloning, learning_rates=[0.001, 0.0005, 0.0001],
     #                                                   batch_sizes=[32, 64, 128], optimizers=[optim.Adam, optim.SGD],
     #                                                   train_set=train_set, val_set=val_set)
-    #print(best_params)             optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
+    #print(best_params)
+    #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
     #train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
     #               optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
 
     #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
-    q_agent = q_model.QModel()
+    #q_agent = q_model.QModel()
     #q_agent = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
-    train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))
-    train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
+    #train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))
+    #train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 
 
 def sets_generation():

@@ -153,14 +153,14 @@ def calculate_optimal_trajectory(environment, env_index):
 
 def move_agent(pos, action):
     x, y = pos
-    if action == Actions.RUN_RIGHT.value:
+    if action == Actions.NOTHING.value:
         return x + 1, y
-    elif action == Actions.RUN_LEFT.value:
-        return x - 1, y
+    #elif action == Actions.RUN_LEFT.value:
+    #    return x - 1, y
     elif action == Actions.JUMP.value:
         return x, y + 1
-    elif action == Actions.JUMP_RIGHT.value:
-        return x + 1, y + 1 # +1 on y because else the y pos gets into region < 0 when jumping
+    #elif action == Actions.JUMP_RIGHT.value:
+    #    return x + 1, y + 1 # +1 on y because else the y pos gets into region < 0 when jumping
     else:
         return pos
 
@@ -172,7 +172,7 @@ def reconstruct_path(environment, actions):
     for action in actions:
         pos = move_agent(pos, action)
         x, y = pos
-        if action == Actions.RUN_RIGHT.value and y > floor_height + 1: # Account for gravity after jumping
+        if action == Actions.NOTHING.value and y > floor_height + 1: # Account for gravity after jumping
             pos = x, y - 1
         path.append(pos)
     return path
