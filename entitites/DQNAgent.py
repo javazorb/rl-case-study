@@ -137,7 +137,7 @@ class DQNAgent(BaseAgent):
                         count += 1
         return total_loss / max(1, count)
 
-    def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_steps=config.NUM_STEPS_ENV,
+    def warm_start_replay_buffer(self, replay_buffer, data_loader, device, max_traverse_steps=config.NUM_STEPS_ENV,
                                  random_start=True):
         agent_start_positions = []
         max_traverse_steps = random.randint(1, config.WINDOW_LEN) * max_traverse_steps
