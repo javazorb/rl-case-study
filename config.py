@@ -41,6 +41,9 @@ class Actions(Enum):
     #NOTHING = 0
     #JUMP = 3
 
+class QActions(Enum):
+    DO_NOTHING = 0
+    JUMP_RIGHT = 3
 
 def get_device():
     use_cuda = torch.cuda.is_available()
