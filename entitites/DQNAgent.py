@@ -23,7 +23,7 @@ class DQNAgent(BaseAgent):
 
     def train(self, train_set, val_set):
         np.random.seed(
-            config.RANDOM_SEED)  # TODO remodel to only jump action because jumping environment moves every state update by once to the rright
+            config.RANDOM_SEED)  # TODO remodel to only jump action because jumping environment moves every state update by once to the right
         self.model.to(self.device)
         replay_buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
         stop_counter = 0
