@@ -7,6 +7,7 @@ class QEnvironment:
     def __init__(self, size=config.ENV_SIZE, environment=None, start_pos=None):
         self.good_action_cnt = 0
         self.jump_count = 0
+        self.stuck_cnt = 0
         if environment is not None:
             environment = np.squeeze(environment)
         self.environment = environment
@@ -33,6 +34,8 @@ class QEnvironment:
         self.done = False
 
         self.good_action_cnt = 0
+        self.jump_count = 0
+        self.stuck_cnt = 0
 
         self.state[0, floor_height, :] = self.environment[floor_height, :]
         self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # Mark goal
@@ -197,17 +200,25 @@ class QEnvironment:
             reward += 2
             if self.jump_count < 15:
                 reward += 1
+                self.jump_count -= 3
+        if self.current_position == new_position:
+            self.stuck_cnt += 1
         if self.jump_count > 15:
             reward -= 2
+        if self.jump_count > 20 or self.stuck_cnt > 10:
+            done = True
+            reward -= 10
+
         # Update position
         self.current_position = new_position
         floor_height = dataset.get_env_floor_height(self.environment)
         # Gravity: apply only if not jumping (actions 0 and 1)
-        if y > dataset.get_env_floor_height(self.environment) + 1 and action not in [2, 3]:
+        if y > dataset.get_env_floor_height(self.environment) and action not in [2, 3]:
             new_y = min( new_y - 1, floor_height + 1)
             new_position = (new_x, new_y)
         #print("Trying to move to:", (new_x, new_y), "→ Cell value:", self.environment[new_x, new_y])
-
+        if action == 1 or action == 2:
+            reward -= 1  # discourage moving left (backwards)
         # Update state representation
         self.state.fill(0)
         self.state[0, floor_height, :] = self.environment[floor_height, :]

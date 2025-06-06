@@ -36,7 +36,8 @@ class DQNAgent(BaseAgent):
         for epoch in range(config.MAX_EPOCHS):
             self.model.train()
             batch_loss = 0
-            epsilon = max(0.2 - epoch * 0.05, 0.01)  # epsilon decay (low because of warm start
+            #epsilon = max(0.2 - epoch * 0.05, 0.01)  # epsilon decay (low because of warm start
+            epsilon = max(0.01, 0.5 * (0.9 ** epoch)) # smoother decay
             for environments, actions in tqdm(train_loader):
                 expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                                 zip(environments, actions)]
@@ -96,6 +97,10 @@ class DQNAgent(BaseAgent):
             if stop_counter >= self.early_stopping:
                 epochs_ran = epoch + 1
                 break
+
+            #if epoch % 5 == 0:
+            #    self.warm_start_replay_buffer(replay_buffer, train_loader, self.device, resample=True, random_start=True)
+
         config.save_model(best_model, name="final_Q")
         print(f'Final training loss: {train_loss / epochs_ran:.4f} after {epochs_ran} epochs')
         self.model = best_model
@@ -138,17 +143,24 @@ class DQNAgent(BaseAgent):
         return total_loss / max(1, count)
 
     def warm_start_replay_buffer(self, replay_buffer, data_loader, device, max_traverse_steps=config.NUM_STEPS_ENV,
-                                 random_start=True):
+                                 random_start=True, resample=False):
+        max_resampling_steps = 0
+        if resample:
+            max_resampling_steps = config.REPLAY_BUFFER_SIZE * 0.1
+        sampling_steps = 0
         agent_start_positions = []
         max_traverse_steps = random.randint(1, config.WINDOW_LEN) * max_traverse_steps
         for environments, actions in data_loader:
             expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                             zip(environments, actions)]
+            if resample and sampling_steps > max_resampling_steps:
+                break
             for expert_path in expert_paths:
                 start_idx = np.random.randint(config.ENV_SIZE - config.NUM_STEPS_ENV)
                 agent_start_positions.append(expert_path[start_idx])
             for env, env_actions, expert_path, start_pos in zip(environments, actions, expert_paths,
                                                                 agent_start_positions):
+
                 if random_start:
                     curr_env = QEnvironment(environment=env.numpy(), size=config.ENV_SIZE, start_pos=start_pos)
                 else:
@@ -159,6 +171,7 @@ class DQNAgent(BaseAgent):
                     curr_env.state = next_state.copy()
                     if done:
                         break
+            sampling_steps += 1
         print(f'Replay buffer size: {len(replay_buffer)} with max_traverse_steps: {max_traverse_steps}')
         return len(replay_buffer)
 

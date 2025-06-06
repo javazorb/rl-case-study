@@ -18,6 +18,7 @@ from data.dataloader import EnvironmentDataset
 import torch
 import models.hyperparameter as hyperparameter
 from entitites.BCAgent import BCAgent
+from entitites.DQNAgent import DQNAgent
 from training.train_q import ReplayBuffer
 
 
@@ -52,12 +53,15 @@ def run():
     #               optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
 
     #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
-    #q_agent = q_model.QModel()
+    q_net = q_model.QModel()
     #q_agent = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
     #train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))
     #train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
+    q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.0001), criterion=nn.MSELoss())
+    q_agent.train(train_set, val_set)
+    train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 
 
 def sets_generation():
