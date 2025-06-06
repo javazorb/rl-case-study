@@ -36,7 +36,7 @@ class DQNAgent(BaseAgent):
         for epoch in range(config.MAX_EPOCHS):
             self.model.train()
             batch_loss = 0
-            epsilon = max(0.9 - epoch * 0.05, 0.1)  # epsilon decay
+            epsilon = max(0.2 - epoch * 0.05, 0.01)  # epsilon decay (low because of warm start
             for environments, actions in tqdm(train_loader):
                 expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                                 zip(environments, actions)]
