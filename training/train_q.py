@@ -61,7 +61,7 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
     best_val_loss = float('inf')
     train_loader = DataLoader(train_data, **config.PARAMS)
     val_loader = DataLoader(val_data, **config.PARAMS)
-    # Maybe TODO warm start for DQN with filling replay buffer with expert actions before training
+
     warm_start_replay_buffer(replay_buffer, train_loader, device)
     for epoch in range(config.MAX_EPOCHS):
         model.train()
