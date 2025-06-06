@@ -5,6 +5,8 @@ import data.dataset as dataset
 
 class QEnvironment:
     def __init__(self, size=config.ENV_SIZE, environment=None, start_pos=None):
+        self.good_action_cnt = 0
+        self.jump_count = 0
         if environment is not None:
             environment = np.squeeze(environment)
         self.environment = environment
@@ -30,6 +32,7 @@ class QEnvironment:
         self.goal_position = (floor_height + 1, self.size - 1)
         self.done = False
 
+        self.good_action_cnt = 0
 
         self.state[0, floor_height, :] = self.environment[floor_height, :]
         self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # Mark goal
@@ -139,14 +142,16 @@ class QEnvironment:
             new_x -= 1 #-
         elif action == 2:  # Jump
             new_y += 1 #-
+            self.jump_count += 1
         elif action == 3:  # Jump right
             new_x += 1 #-
             new_y += 1 #+
+            self.jump_count += 1
 
         # Clip to environment bounds
         new_x = np.clip(new_x, 0, self.size - 1)
         new_y = np.clip(new_y, 0, self.size - 1)
-        reward = 0
+        reward = -0.1
         new_position = (new_x, new_y)
         floor_height = dataset.get_env_floor_height(self.environment)
 
@@ -154,10 +159,10 @@ class QEnvironment:
 
         # Check collision
         if self.environment[new_position] == 255:
-            reward = -1  # Obstacle hit
+            reward += -1  # Obstacle hit
             new_position = self.current_position  # optionally stay in place
         elif new_position == self.goal_position:
-            reward = 10
+            reward += 10
             self.done = True
         else:
             reward = 0
@@ -174,7 +179,8 @@ class QEnvironment:
             old_dist = abs(self.goal_position[1] - x)
             new_dist = abs(self.goal_position[1] - new_x)
             if new_dist < old_dist:
-                reward += 0.5
+                self.good_action_cnt += 1
+                #reward += 0.5
             elif new_dist > old_dist:
                 reward -= 0.5
 
@@ -187,11 +193,17 @@ class QEnvironment:
             if self.environment[new_position[0] - 1, new_position[1] - 1] == 255 and self.environment[new_position] == 0:
                 reward += 2
 
+        if self.good_action_cnt > 3:
+            reward += 2
+            if self.jump_count < 15:
+                reward += 1
+        if self.jump_count > 15:
+            reward -= 2
         # Update position
         self.current_position = new_position
         floor_height = dataset.get_env_floor_height(self.environment)
         # Gravity: apply only if not jumping (actions 0 and 1)
-        if y > dataset.get_env_floor_height(self.environment) and action not in [2, 3]:
+        if y > dataset.get_env_floor_height(self.environment) + 1 and action not in [2, 3]:
             new_y = min( new_y - 1, floor_height + 1)
             new_position = (new_x, new_y)
         #print("Trying to move to:", (new_x, new_y), "→ Cell value:", self.environment[new_x, new_y])
