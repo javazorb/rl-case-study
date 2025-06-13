@@ -39,7 +39,7 @@ def run():
     train_set = EnvironmentDataset(train_data)
     val_set = EnvironmentDataset(val_data)
     test_set = EnvironmentDataset(test_data)
-    weights = torch.tensor([1.0, 3.0]).to(config.get_device())
+    #weights = torch.tensor([1.0, 3.0]).to(config.get_device())
     #bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss(weight=weights), early_stopping=10)
     #bc_agent.train(train_set, val_set)
     #acc = train_bc.test_accuracy(bc_agent.model, config.get_device(), test_set)
@@ -59,7 +59,7 @@ def run():
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
     #train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))
     #train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
-    q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.0001), criterion=nn.MSELoss())
+    q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
     q_agent.train(train_set, val_set)
     train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 

@@ -14,9 +14,11 @@ class QEnvironment:
         self.size = size
         self.size_x, self.size_y = environment.shape
         floor_height = dataset.get_env_floor_height(self.environment)
-        self.goal_position = (floor_height + 1, self.size - 1)
+        if floor_height is None:
+            floor_height = start_pos[1]
+        self.goal_position = (self.size - 1, floor_height + 1)
         #self.start_position = (floor_height + 1, 0)
-        self.start_position = start_pos if start_pos is not None else (floor_height + 1, 0)
+        self.start_position = start_pos if start_pos is not None else (0, floor_height + 1)
         #self.start_position = start_pos if start_pos is not None else (0, floor_height + 1)
         self.current_position = self.start_position
         self.state = np.zeros((1, self.size, self.size), dtype=np.float32)
@@ -28,16 +30,18 @@ class QEnvironment:
     def reset(self):
         self.state.fill(0)
         floor_height = dataset.get_env_floor_height(self.environment)
-        self.start_position = (floor_height + 1, floor_height +1)
+        if floor_height is None:
+            floor_height = self.start_position[1]
+        self.start_position = (0, floor_height + 1)
         self.current_position = self.start_position
-        self.goal_position = (floor_height + 1, self.size - 1)
+        self.goal_position = (self.size - 1, floor_height + 1)
         self.done = False
 
         self.good_action_cnt = 0
         self.jump_count = 0
         self.stuck_cnt = 0
 
-        self.state[0, floor_height, :] = self.environment[floor_height, :]
+        self.state[0, :, floor_height] = self.environment[:, floor_height]
         self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # Mark goal
         self.state[0, self.start_position[0], self.start_position[1]] = 1  # Mark start
         self.state[0, self.current_position[0], self.current_position[1]] = 3  # Agent marker
@@ -130,7 +134,7 @@ class QEnvironment:
         next_state = self.state
         return next_state, reward, self.done
 
-    def step(self, action):
+    def step_4actions(self, action):
         if self.done:
             return self.state, 0, True
 
@@ -226,6 +230,37 @@ class QEnvironment:
         self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
         self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent
 
+        return self.state, reward, self.done
+
+    def step(self, action):
+        reward = 0
+        if self.current_position == self.goal_position:
+            done = True
+            reward += 10
+        x,y = self.current_position
+        if self.environment[x, y] == config.WHITE: # Failed level due to collision
+            done = True
+            reward -= 10
+        if x < config.ENV_SIZE - 1:
+            x += 1 # move automatically towards goal
+        if action == 0:  # do nothing
+            reward += 0.2
+        elif action == 3 or action == 1: #jump
+            reward += 1
+            y += 1
+        floor_height = dataset.get_env_floor_height(self.environment)
+
+        if y > floor_height + 1 and action != 3: # Gravity
+            y -= 1
+
+
+        self.current_position = (x,y)
+        # Update state representation
+        self.state.fill(0)
+        self.state[0, floor_height, :] = self.environment[floor_height, :]
+        self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # goal
+        self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
+        self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent # maybe check for index out of bounds
         return self.state, reward, self.done
 
 
