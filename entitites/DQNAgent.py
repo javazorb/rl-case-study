@@ -1,6 +1,6 @@
 import random
 from collections import Counter
-
+from itertools import islice
 from torch.utils.data import DataLoader
 import numpy as np
 from data import dataset
@@ -15,13 +15,17 @@ from entitites.replay_buffer import ReplayBuffer
 
 
 def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_steps=config.NUM_STEPS_ENV,
-                             random_start=True, resample=False):
+                             random_start=True, resample=False, max_trajectories=300, hybrid_mode=False, agent=None):
     max_resampling_steps = 0
     if resample:
         max_resampling_steps = config.REPLAY_BUFFER_SIZE * 0.1
     sampling_steps = 0
     agent_start_positions = []
     max_traverse_steps = random.randint(1, config.WINDOW_LEN) * max_traverse_steps
+
+    random.shuffle(data_loader)
+    hold_out_loader = islice(data_loader, int(0.1 * len(data_loader)))
+    data_loader = islice(data_loader, int(0.3 * len(data_loader))) # using 30% of combined train and val set for warmstart
     for environments, actions in data_loader:
         expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                         zip(environments, actions)]
@@ -44,6 +48,23 @@ def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_st
                 if done:
                     break
         sampling_steps += 1
+        if sampling_steps >= max_traverse_steps:
+            break
+    if hybrid_mode:
+        for environments, actions in hold_out_loader:
+            envs = environments
+            for env in environments:
+                curr_env = QEnvironment(environment=env.numpy(), size=config.ENV_SIZE, start_pos=None)
+                state = curr_env.reset()
+                done = False
+                steps = 0
+                while not done and steps < config.MAX_STEPS:
+                    action = DQNAgent.epsilon_greedy_action(agent, state=state, epsilon=1)
+                    next_state, reward, done = curr_env.step(action)
+                    replay_buffer.push(curr_env.state.copy(), action, reward, next_state.copy(), done)
+                    state = next_state
+                    steps += 1
+
     print(f'Replay buffer size: {len(replay_buffer)} with max_traverse_steps: {max_traverse_steps}')
     return len(replay_buffer)
 
@@ -191,7 +212,8 @@ class DQNAgent(BaseAgent):
         train_loader = DataLoader(train_set, **config.PARAMS)
         val_loader = DataLoader(val_set, **config.PARAMS)
         replay_buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
-        warm_start_replay_buffer(replay_buffer, train_loader, self.device)
+
+        warm_start_replay_buffer(replay_buffer, list(train_loader) + list(val_loader), self.device, hybrid_mode=True, agent=self)
         best_model = copy.deepcopy(self.model)
         step_counter = 0
         best_val_loss = float('inf')
