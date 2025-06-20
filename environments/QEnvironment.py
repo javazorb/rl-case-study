@@ -249,15 +249,16 @@ class QEnvironment:
         floor_height = dataset.get_env_floor_height(self.environment)
         obstacle_start, obstacle_end = dataset.get_obst_positions(self.environment, floor_height)
         obstacle_height = dataset.get_obstacle_height(self.environment, obstacle_start)
-        if x in range(obstacle_start, obstacle_end) and y > floor_height:
+        if x in range(obstacle_start, obstacle_end) and y > floor_height + 1:
             reward += 1.5
         if y > floor_height + 1 and action != 3:  # Gravity
             y -= 1
-
+        if y > config.ENV_SIZE - 1:
+            y = config.ENV_SIZE - 1
         if self.environment[x, y] == config.WHITE or y >= config.ENV_SIZE: # Failed level due to collision
             done = True
             reward -= 10
-        if x in range(obstacle_start, obstacle_end) and y < obstacle_height: # Failed agent in obstacle
+        if x in range(obstacle_start, obstacle_end) and y < obstacle_height + floor_height + 1: # Failed agent in obstacle
             done = True
             reward -= 10
 

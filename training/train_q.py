@@ -268,6 +268,8 @@ def evaluate_model_and_vis(model, device, val_loader, num_episodes=5, save_dir=N
                 #                     title=f"Episode {episode_idx} | Reward: {cumulative_reward}")
                 state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
                 action = epsilon_greedy_action(model, state_tensor, epsilon=0.0)  # greedy
+                if action == 1:
+                    action = 3
                 _, reward, done = curr_env.step(action)
                 if reward == -1:
                     print(f'Episode obstacle at? {env[curr_env.current_position[0]][curr_env.current_position[1]]}')

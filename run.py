@@ -54,7 +54,7 @@ def run():
 
     #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
     q_net = q_model.QModel()
-    #q_agent = load_model('final_Q_state_dict', q_agent)
+    #trained_q = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
     #train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))

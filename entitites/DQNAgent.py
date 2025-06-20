@@ -224,6 +224,9 @@ class DQNAgent(BaseAgent):
         val_batch_env = None
         val_batch_start_pos = None
         action_distribution = Counter()
+        epoch_qs = []
+        epoch_next_qs = []
+        epoch_action_counts = []
 
         for epoch in range(config.MAX_EPOCHS):
             self.model.train()
@@ -279,12 +282,10 @@ class DQNAgent(BaseAgent):
                             self.optimizer.step()
 
                             batch_loss += loss.item()
-
-                            if step_counter % 100 == 0:
-                                avg_q = q_values.mean().item()
-                                avg_next_q = next_q_values.mean().item()
-                                print(f"Step {step_counter}: Avg Q = {avg_q:.4f}, Avg Next Q = {avg_next_q:.4f}")
-                                print(f"Action Distribution: {dict(action_distribution)}")
+                            epoch_qs.append(q_values.mean().item())
+                            epoch_next_qs.append(next_q_values.mean().item())
+                            batch_actions_counts = torch.bincount(torch.tensor(actions_batch))
+                            epoch_action_counts.append(batch_actions_counts)
 
                         step_counter += 1
                         self.target_update_counter += 1
@@ -298,10 +299,15 @@ class DQNAgent(BaseAgent):
 
             avg_train_loss = batch_loss / max(1, len(train_loader) * config.NUM_STEPS_ENV)
             val_loss = self.loss(val_loader)
-
+            # Epoch summary
+            avg_epoch_q = sum(epoch_qs) / len(epoch_qs)
+            avg_epoch_next_q = sum(epoch_next_qs) / len(epoch_next_qs)
+           # action_dist = {i: int(epoch_action_counts[i].item()) for i in range(len(epoch_action_counts)) if
+           #                epoch_action_counts[i] > 0}
             print(
                 f'Epoch {epoch + 1}/{config.MAX_EPOCHS} - Train Loss: {avg_train_loss:.4f} - Val Loss: {val_loss:.4f} - Epsilon: {epsilon:.4f}')
-
+            print(f"Avg Q: {avg_epoch_q:.4f} | Avg Next Q: {avg_epoch_next_q:.4f}")
+            #print(f"Action Distribution: {action_dist}")
             if val_loss < best_val_loss:
                 best_val_loss = val_loss if val_loss < best_val_loss else best_val_loss
                 best_avg_train_loss = avg_train_loss if avg_train_loss < best_avg_train_loss else best_avg_train_loss
