@@ -234,27 +234,38 @@ class QEnvironment:
 
     def step(self, action):
         reward = 0
-        if self.current_position == self.goal_position:
-            done = True
-            reward += 10
+        done = False
         x,y = self.current_position
-        if self.environment[x, y] == config.WHITE: # Failed level due to collision
-            done = True
-            reward -= 10
+
         if x < config.ENV_SIZE - 1:
             x += 1 # move automatically towards goal
+
         if action == 0:  # do nothing
             reward += 0.2
         elif action == 3 or action == 1: #jump
             reward += 1
             y += 1
-        floor_height = dataset.get_env_floor_height(self.environment)
 
-        if y > floor_height + 1 and action != 3: # Gravity
+        floor_height = dataset.get_env_floor_height(self.environment)
+        obstacle_start, obstacle_end = dataset.get_obst_positions(self.environment, floor_height)
+        obstacle_height = dataset.get_obstacle_height(self.environment, obstacle_start)
+        if x in range(obstacle_start, obstacle_end) and y > floor_height:
+            reward += 1.5
+        if y > floor_height + 1 and action != 3:  # Gravity
             y -= 1
 
+        if self.environment[x, y] == config.WHITE or y >= config.ENV_SIZE: # Failed level due to collision
+            done = True
+            reward -= 10
+        if x in range(obstacle_start, obstacle_end) and y < obstacle_height: # Failed agent in obstacle
+            done = True
+            reward -= 10
 
-        self.current_position = (x,y)
+        self.current_position = (x, y)
+        if self.current_position == self.goal_position:
+            done = True
+            reward += 10
+
         # Update state representation
         self.state.fill(0)
         self.state[0, floor_height, :] = self.environment[floor_height, :]

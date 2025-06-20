@@ -1,6 +1,7 @@
 import random
-from collections import deque
+from collections import deque, Counter
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class ReplayBuffer:
@@ -17,3 +18,12 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.buffer)
+
+    def visualize_content(self):
+        action_counts = Counter([a for (_, a, _, _, _) in self.buffer])
+        plt.bar(list(map(str, action_counts.keys())), action_counts.values())
+        plt.title("Replay Buffer Action Distribution")
+        plt.xlabel("Action")
+        plt.ylabel("Count")
+        plt.grid(True)
+        plt.show()

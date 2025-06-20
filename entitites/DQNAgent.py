@@ -43,7 +43,7 @@ def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_st
                 curr_env = QEnvironment(environment=env.numpy(), size=config.ENV_SIZE, start_pos=expert_path[0])
             for action in env_actions[:max_traverse_steps]:
                 next_state, reward, done = curr_env.step(action)
-                replay_buffer.push(curr_env.state.copy(), action, reward, next_state.copy(), done)
+                replay_buffer.push(curr_env.state.copy(), int(action), reward, next_state.copy(), done)
                 curr_env.state = next_state.copy()
                 if done:
                     break
@@ -61,7 +61,7 @@ def warm_start_replay_buffer(replay_buffer, data_loader, device, max_traverse_st
                 while not done and steps < config.MAX_STEPS:
                     action = DQNAgent.epsilon_greedy_action(agent, state=state, epsilon=1)
                     next_state, reward, done = curr_env.step(action)
-                    replay_buffer.push(curr_env.state.copy(), action, reward, next_state.copy(), done)
+                    replay_buffer.push(curr_env.state.copy(), int(action), reward, next_state.copy(), done)
                     state = next_state
                     steps += 1
 
@@ -214,6 +214,7 @@ class DQNAgent(BaseAgent):
         replay_buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
 
         warm_start_replay_buffer(replay_buffer, list(train_loader) + list(val_loader), self.device, hybrid_mode=True, agent=self)
+        replay_buffer.visualize_content()
         best_model = copy.deepcopy(self.model)
         step_counter = 0
         best_val_loss = float('inf')
@@ -222,6 +223,7 @@ class DQNAgent(BaseAgent):
         self.target_update_counter = 0
         val_batch_env = None
         val_batch_start_pos = None
+        action_distribution = Counter()
 
         for epoch in range(config.MAX_EPOCHS):
             self.model.train()
@@ -249,9 +251,10 @@ class DQNAgent(BaseAgent):
                         action = self.epsilon_greedy_action(state_tensor, epsilon)
                         if action == 1:
                             action = 3  # your remapping
+                        action_distribution[action] += 1
 
                         next_state, reward, done = curr_env.step(action)
-                        replay_buffer.push(curr_env.state.copy(), action, reward, next_state.copy(), done)
+                        replay_buffer.push(curr_env.state.copy(), int(action), reward, next_state.copy(), done)
                         curr_env.state = next_state.copy()
 
                         if len(replay_buffer) >= config.NUM_REPLAY_SAMPLE:
@@ -277,6 +280,12 @@ class DQNAgent(BaseAgent):
 
                             batch_loss += loss.item()
 
+                            if step_counter % 100 == 0:
+                                avg_q = q_values.mean().item()
+                                avg_next_q = next_q_values.mean().item()
+                                print(f"Step {step_counter}: Avg Q = {avg_q:.4f}, Avg Next Q = {avg_next_q:.4f}")
+                                print(f"Action Distribution: {dict(action_distribution)}")
+
                         step_counter += 1
                         self.target_update_counter += 1
 
@@ -293,7 +302,7 @@ class DQNAgent(BaseAgent):
             print(
                 f'Epoch {epoch + 1}/{config.MAX_EPOCHS} - Train Loss: {avg_train_loss:.4f} - Val Loss: {val_loss:.4f} - Epsilon: {epsilon:.4f}')
 
-            if val_loss < best_val_loss or avg_train_loss < best_avg_train_loss:
+            if val_loss < best_val_loss:
                 best_val_loss = val_loss if val_loss < best_val_loss else best_val_loss
                 best_avg_train_loss = avg_train_loss if avg_train_loss < best_avg_train_loss else best_avg_train_loss
                 stop_counter = 0
@@ -352,12 +361,16 @@ class DQNAgent(BaseAgent):
         return total_loss / max(1, count)
 
     def epsilon_greedy_action(self, state, epsilon=0.1):
+        selected_action = -1
         if random.random() < epsilon:
             # Explore: choose a random action
-            return random.randint(0, len(config.QActions) - 1)
+            selected_action = random.randint(0, len(config.QActions) - 1)
         else:
             # Exploit: choose action with highest Q-value
             with torch.no_grad():
                 actions = self.model(state)
                 action = torch.argmax(actions, dim=1)
-                return action.item()
+                selected_action = action.item()
+        if selected_action == 1:
+            selected_action = 3
+        return selected_action
