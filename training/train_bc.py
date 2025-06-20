@@ -3,11 +3,12 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 import config
 import numpy as np
+import copy
 import data.dataset as dataset
 
 
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10):
-    np.random.seed(config.RANDOM_SEED)
+    np.random.seed(config.RANDOM_SEED) # TODO remodel to only jump action because jumping environment moves every state update by once to the rright
     model.to(device)
     best_val_loss = float('inf')
     stop_counter = 0
@@ -57,7 +58,7 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
             print(f'New best validation loss: {val_loss}\n old best validation loss: {best_val_loss}')
             best_val_loss = val_loss
             stop_counter = 0
-            best_model = model
+            best_model = copy.deepcopy(model)
             config.save_model(model, name=f"BC_{epoch + 1}")
         else:
             stop_counter += 1

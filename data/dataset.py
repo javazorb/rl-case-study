@@ -153,6 +153,10 @@ def calculate_optimal_trajectory(environment, env_index):
 
 def move_agent(pos, action):
     x, y = pos
+    #if action == Actions.NOTHING.value:
+    #    return x + 1, y
+    #elif action == JUMP.value:
+    #    return x + 1, y + 1
     if action == Actions.RUN_RIGHT.value:
         return x + 1, y
     elif action == Actions.RUN_LEFT.value:

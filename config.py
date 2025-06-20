@@ -17,14 +17,16 @@ AGENT_END_POS = 59
 AGENT = 130
 MAX_JUMP_HEIGHT = 20
 WINDOW_LEN = 5
-NUM_STEPS_ENV = WINDOW_LEN * 2
-BATCH_SIZE = 10
+NUM_STEPS_ENV = WINDOW_LEN * 4
+BATCH_SIZE = 16
 PARAMS = {'batch_size': BATCH_SIZE, 'shuffle': True, 'num_workers': 0}
 MAX_EPOCHS = 100
 MAX_STEPS = 100  # Maximum steps per episode
-EPS_DECAY = 0.99  # Decay rate for epsilon in epsilon-greedy strategy
+EPS_DECAY = 100000 #0.99  # Decay rate for epsilon in epsilon-greedy strategy
 MIN_EPSILON = 0.01  # Minimum value for epsilon after decay
 GAMMA = 0.99  # Discount factor for future rewards
+REPLAY_BUFFER_SIZE = 50000
+NUM_REPLAY_SAMPLE = 32
 # RUN_RIGHT = 1
 # RUN_LEFT = 2
 # JUMP = 3
@@ -36,7 +38,12 @@ class Actions(Enum):
     RUN_LEFT = 1
     JUMP = 2
     JUMP_RIGHT = 3
+    #NOTHING = 0
+    #JUMP = 3
 
+class QActions(Enum):
+    DO_NOTHING = 0
+    JUMP_RIGHT = 3
 
 def get_device():
     use_cuda = torch.cuda.is_available()
