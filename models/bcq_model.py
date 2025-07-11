@@ -2,7 +2,7 @@ from torch import nn
 import torch.nn.functional as F
 import config
 
-class QModel(nn.Module):
+class BCQModel(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=2, padding=2)  # → (32, 30, 30)
