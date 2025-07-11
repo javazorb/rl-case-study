@@ -28,7 +28,11 @@ class BCQModel(nn.Module):
         #x = x.view(x.size(0), -1)
         #x = self.relu(self.fc1(x))
         #return self.fc2(x)
-        q = F.relu(self.q1(x.reshape(-1, 14400)))
-        i = F.relu(self.i1(x.reshape(-1, 14400)))
+
+        #q = F.relu(self.q1(x.reshape(-1, 14400)))
+        #i = F.relu(self.i1(x.reshape(-1, 14400)))
+        x = x.view(x.size(0), -1)
+        q = F.relu(self.q1(x))
+        i = F.relu(self.i1(x))
         i = self.i2(i)
         return self.q2(q), F.log_softmax(i, dim=1), i
