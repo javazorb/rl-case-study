@@ -35,29 +35,45 @@ class DiscreteBCQAgent:
 
     def train(self, replay_buffer, batch_size=32):
         self.model.train()
+        self.model.to(self.device)
 
         # Sample
-        states, actions, next_states, rewards, dones = replay_buffer.sample(batch_size)
+        states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
         states = torch.FloatTensor(states).to(self.device)
         actions = torch.LongTensor(actions).to(self.device)
         next_states = torch.FloatTensor(next_states).to(self.device)
         rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
         dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
 
-        # Target Q
+        #target_qs = []
+        #for i in range(batch_size):
+        #    next_state = next_states.cpu().numpy()[i]
+        #    next_state = torch.from_numpy(next_state).float().to(self.device)
+        #    # Target Q
+        #    with torch.no_grad():
+        #        q_next, imt_next, _ = self.model(next_state)
+        #        imt_next = imt_next.exp()
+        #        imt_next = (imt_next / imt_next.max(1, keepdim=True)[0] > self.threshold).float()
+        #        q_next = imt_next * q_next + (1 - imt_next) * -1e8
+        #        next_actions = q_next.argmax(1, keepdim=True)
+        #        target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
+        #        target_qs.append(target_q)
         with torch.no_grad():
             q_next, imt_next, _ = self.model(next_states)
-            imt_next = imt_next.exp()
-            imt_next = (imt_next / imt_next.max(1, keepdim=True)[0] > self.threshold).float()
-            q_next = imt_next * q_next + (1 - imt_next) * -1e8
+            imt_next = imt_next.exp()  # log_probs → probs
+            threshold_mask = (imt_next / imt_next.max(1, keepdim=True)[0] > self.threshold).float()
+            q_next = threshold_mask * q_next + (1 - threshold_mask) * -1e8  # maskiere nicht-expert-Aktionen
             next_actions = q_next.argmax(1, keepdim=True)
+            #next_actions[next_actions == 1] = 3
+            mask = (next_actions == 1)
+            next_actions = torch.where(mask, torch.tensor(3, device=next_actions.device), next_actions)
             target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
 
         # Current Q + Imitation
         q_values, imt, i_logits = self.model(states)
-        q_values = q_values.gather(1, actions)
+        q_values = q_values.gather(1, actions.unsqueeze(1))
 
-        q_loss = F.smooth_l1_loss(q_values, target_q)
+        q_loss = F.mse_loss(q_values, target_q)
         i_loss = F.nll_loss(imt, actions.squeeze())
         reg_loss = 1e-2 * i_logits.pow(2).mean()
 

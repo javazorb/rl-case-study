@@ -19,7 +19,10 @@ import torch
 import models.hyperparameter as hyperparameter
 from entitites.BCAgent import BCAgent
 from entitites.DQNAgent import DQNAgent
+from entitites.DQNAgent import warm_start_replay_buffer
 from training.train_q import ReplayBuffer
+from entitites.BCQ import DiscreteBCQAgent
+from entitites.BCQ import train_bcq
 
 
 def load_model(name, model):
@@ -59,9 +62,19 @@ def run():
     #train_q.loss(q_agent, config.get_device(), DataLoader(val_set, **config.PARAMS), criterion=nn.MSELoss())
     #train_q.train(q_agent, config.get_device(), train_set, val_set, criterion=nn.MSELoss(), optimizer=optim.Adam(q_agent.parameters(), lr=0.0001))
     #train_q.evaluate_model_and_vis(q_agent, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
-    q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
-    q_agent.train(train_set, val_set)
-    train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
+
+    #q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
+    #q_agent.train(train_set, val_set)
+    #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
+    model = bcq_model.BCQModel()
+    agent = DiscreteBCQAgent(model=model, num_actions=100)
+    buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
+    train_loader = DataLoader(train_set, **config.PARAMS)
+    val_loader = DataLoader(val_set, **config.PARAMS)
+    warm_start_replay_buffer(buffer, list(train_loader)
+                             , config.get_device(), agent=agent)
+    train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
+
 
 
 def sets_generation():
