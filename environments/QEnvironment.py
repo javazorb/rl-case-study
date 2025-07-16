@@ -1,6 +1,9 @@
 import numpy as np
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import config
 import data.dataset as dataset
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 
 class QEnvironment:
@@ -275,4 +278,14 @@ class QEnvironment:
         self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent # maybe check for index out of bounds
         return self.state, reward, self.done
 
-
+    def render(self, mode="rgb_array"):
+        fig = Figure(figsize=(3, 3), dpi=60)
+        canvas = FigureCanvas(fig)
+        ax = fig.add_subplot(111)
+        ax.imshow(self.state, cmap='gray', origin='lower', vmin=0, vmax=255)
+        ax.axis('off')
+        canvas.draw()
+        buf = canvas.buffer_rgba()
+        image = np.asarray(buf)
+        plt.close(fig)
+        return image

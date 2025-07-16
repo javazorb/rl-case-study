@@ -1,16 +1,50 @@
 import torch
 import torch.nn.functional as F
 import copy
-
+from PIL import Image
 import config
+from data.generate_environment import generate_environment
+from environments.QEnvironment import QEnvironment
 
 
 def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32):
+    EVAL_FREQUENCY = 10
     for epoch in range(num_epochs):
         for _ in range(steps_per_epoch):
             logs = agent.train(replay_buffer, batch_size)
 
         print(f"[Epoch {epoch}] Total loss: {logs['total_loss']:.4f}, Q: {logs['q_loss']:.4f}, I: {logs['i_loss']:.4f}")
+        if epoch % EVAL_FREQUENCY == 0:
+            eval_env = QEnvironment(size=config.ENV_SIZE, environment=generate_environment(), start_pos=None)
+
+            gif_path = f"eval_outputs/epoch_{epoch}.gif"
+            evaluate_and_save_gif(agent, eval_env, gif_path)
+
+
+def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):
+    frames = []
+    state = env.reset()
+    total_reward = 0
+
+    for step in range(max_steps):
+        frame = env.render(mode='rgb_array')
+        frames.append(frame)
+        action = agent.select_action(state)
+        next_state, reward, done, _ = env.step(action)
+        state = next_state
+        total_reward += reward
+        if done:
+            break
+    frames.append(Image.fromarray(env.render(mode="rgb_array")))
+
+    frames[0].save(
+        gif_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=100,
+        loop=0
+    )
+    print(f"[GIF] Gespeichert unter {gif_path} | Reward: {total_reward:.2f}")
 
 
 class DiscreteBCQAgent:
