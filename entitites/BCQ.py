@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 import copy
 
+import config
+
 
 def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32):
     for epoch in range(num_epochs):
@@ -12,7 +14,7 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
 
 
 class DiscreteBCQAgent:
-    def __init__(self, model, num_actions, threshold=0.3, gamma=0.99, lr=1e-4, device="cuda"):
+    def __init__(self, model, num_actions, threshold=0.3, gamma=0.99, lr=1e-4, device=config.get_device()):
         self.device = device
         self.model = model.to(device)
         self.target_model = copy.deepcopy(model).to(device)

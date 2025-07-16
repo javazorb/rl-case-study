@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+from torch.ao.nn.quantized.functional import threshold
 from torch.utils.data import DataLoader
 
 import config
@@ -67,7 +68,7 @@ def run():
     #q_agent.train(train_set, val_set)
     #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
     model = bcq_model.BCQModel()
-    agent = DiscreteBCQAgent(model=model, num_actions=100)
+    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
