@@ -5,6 +5,7 @@ from PIL import Image
 import config
 from data.generate_environment import generate_environment
 from environments.QEnvironment import QEnvironment
+import os
 
 
 def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32):
@@ -18,6 +19,8 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             eval_env = QEnvironment(size=config.ENV_SIZE, environment=generate_environment(), start_pos=None)
 
             gif_path = f"eval_outputs/epoch_{epoch}.gif"
+            if not os.path.exists("eval_outputs"):
+                os.makedirs("eval_outputs")
             evaluate_and_save_gif(agent, eval_env, gif_path)
 
 
@@ -28,9 +31,9 @@ def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):
 
     for step in range(max_steps):
         frame = env.render(mode='rgb_array')
-        frames.append(frame)
+        frames.append(Image.fromarray(frame))
         action = agent.select_action(state)
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done = env.step(action)
         state = next_state
         total_reward += reward
         if done:
@@ -73,6 +76,7 @@ class DiscreteBCQAgent:
         self.model.train()
         self.model.to(self.device)
 
+
         # Sample
         states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
         states = torch.FloatTensor(states).to(self.device)
@@ -95,10 +99,13 @@ class DiscreteBCQAgent:
         #        target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
         #        target_qs.append(target_q)
         with torch.no_grad():
-            q_next, imt_next, _ = self.model(next_states)
+            q_next, imt_next, _ = self.target_model(next_states)
+
+            action_counts = torch.bincount(actions, minlength=self.num_actions).cpu().numpy()
+
             imt_next = imt_next.exp()  # log_probs → probs
             threshold_mask = (imt_next / imt_next.max(1, keepdim=True)[0] > self.threshold).float()
-            q_next = threshold_mask * q_next + (1 - threshold_mask) * -1e8  # maskiere nicht-expert-Aktionen
+            q_next = threshold_mask * q_next + (1 - threshold_mask) * -1e8 #-1e8  # maskiere nicht-expert-Aktionen
             next_actions = q_next.argmax(1, keepdim=True)
             #next_actions[next_actions == 1] = 3
             mask = (next_actions == 1)
@@ -109,7 +116,7 @@ class DiscreteBCQAgent:
         q_values, imt, i_logits = self.model(states)
         q_values = q_values.gather(1, actions.unsqueeze(1))
 
-        q_loss = F.mse_loss(q_values, target_q)
+        q_loss = F.smooth_l1_loss(q_values, target_q)
         i_loss = F.nll_loss(imt, actions.squeeze())
         reg_loss = 1e-2 * i_logits.pow(2).mean()
 
