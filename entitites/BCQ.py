@@ -4,6 +4,7 @@ import copy
 from PIL import Image
 import config
 from data.generate_environment import generate_environment
+from entitites.replay_buffer import ReplayBuffer
 from environments.QEnvironment import QEnvironment
 import os
 
@@ -22,6 +23,21 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             if not os.path.exists("eval_outputs"):
                 os.makedirs("eval_outputs")
             evaluate_and_save_gif(agent, eval_env, gif_path)
+
+
+def fill_buffer(data_loader):
+    buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
+    for envs, actions in data_loader:
+        for env, env_actions in zip(envs, actions):
+            curr_env = QEnvironment(size=config.ENV_SIZE, environment=env, start_pos=None)
+
+            state = curr_env.state.copy()
+            for action in env_actions:
+                next_state, reward, done = curr_env.step(action)
+                buffer.push(state, action, reward, next_state, done)
+                state = next_state.copy()
+
+    return buffer
 
 
 def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):

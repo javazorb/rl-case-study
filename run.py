@@ -22,7 +22,7 @@ from entitites.BCAgent import BCAgent
 from entitites.DQNAgent import DQNAgent
 from entitites.DQNAgent import warm_start_replay_buffer
 from training.train_q import ReplayBuffer
-from entitites.BCQ import DiscreteBCQAgent
+from entitites.BCQ import DiscreteBCQAgent, fill_buffer
 from entitites.BCQ import train_bcq
 
 
@@ -72,8 +72,7 @@ def run():
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
-    warm_start_replay_buffer(buffer, list(train_loader)
-                             , config.get_device(), agent=agent)
+    buffer = fill_buffer(train_loader)
     train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
 
 
