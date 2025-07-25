@@ -55,16 +55,16 @@ def fill_buffer(data_loader):
 
 def generate_jumpy_actions_with_random_jumps(environment, actions, max_steps=config.ENV_SIZE, random_jump_prob=0.3):
     """
-    Generiert Aktionen, die vor Hindernissen springen
-    und zusätzlich mit einer Wahrscheinlichkeit random_jump_prob zufällig springen,
-    um die Sprunganzahl zu erhöhen.
+    generates jump actions with random jumps that jump before the obstacle occurs.
+    The random jumps have a probabilit of occuring
 
     Args:
         environment (np.ndarray): 60x60 uint8 Environment
-
-
+        actions (list[int]): list of actions
+        max_steps (int): maximum number of steps preferably length of environment
+        random_jump_prob (float): probability of random jump
     Returns:
-        List[int]: Aktionsliste mit 0 (do_nothing) und 3 (jump)
+        List[int]: of actions for the environment
     """
     actions = []
     lookahead = 5
