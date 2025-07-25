@@ -36,9 +36,11 @@ def fill_buffer(data_loader):
     jump_counter_in_buffer = 0
     for envs, actions in data_loader:
         for env, env_actions in zip(envs, actions):
-            floor_height = dataset.get_env_floor_height(env.cpu().numpy())
-            obst_start, obst_end = dataset.get_obst_positions(env, floor_height)
-            env_actions = generate_jumpy_actions_with_random_jumps(env, env_actions)
+            environment = env.cpu().numpy()
+            env_actions = env_actions.cpu().numpy()
+            floor_height = dataset.get_env_floor_height(environment)
+            obst_start, obst_end = dataset.get_obst_positions(environment, floor_height)
+            env_actions = generate_jumpy_actions_with_random_jumps(environment, env_actions)
 
 
             curr_env = QEnvironment(size=config.ENV_SIZE, environment=env.cpu().numpy())
@@ -53,7 +55,7 @@ def fill_buffer(data_loader):
     print(f"Replay buffer size: {len(buffer)}   Jump counter: {jump_counter_in_buffer}")
     return buffer
 
-def generate_jumpy_actions_with_random_jumps(environment, actions, max_steps=config.ENV_SIZE, random_jump_prob=0.3):
+def generate_jumpy_actions_with_random_jumps(environment, env_actions, max_steps=config.ENV_SIZE, random_jump_prob=0.7):
     """
     generates jump actions with random jumps that jump before the obstacle occurs.
     The random jumps have a probabilit of occuring
@@ -70,34 +72,34 @@ def generate_jumpy_actions_with_random_jumps(environment, actions, max_steps=con
     lookahead = 5
     floor_height = dataset.get_env_floor_height(environment)
     agent_pos = (0, floor_height + 1)  # Startposition
-    obst_start, obst_end = dataset.get_env_floor_height(environment, floor_height)
-    first_perfect_jump = next(action for action in actions if action == config.QActions.JUMP_RIGHT)
+    obst_start, obst_end = dataset.get_obst_positions(environment, floor_height)
+    first_perfect_jump = next(i for i, a in enumerate(env_actions) if a == config.QActions.JUMP_RIGHT.value)
     agent_pos = (0, floor_height + 1)  # Startposition
 
     # Hindernisinformation
-    obst_start, obst_end = dataset.get_env_floor_height(environment, floor_height)
+    obst_start, obst_end = dataset.get_obst_positions(environment, floor_height)
 
     # Berechne Index des ersten perfekten Sprungs
     # -> das ist die Position, an der normalerweise der Expert springen würde
     first_perfect_jump_index = first_perfect_jump
-    jump_distance = obst_start[0] - first_perfect_jump_index
+    jump_distance = obst_start - first_perfect_jump_index
 
     for step in range(max_steps):
         x, y = agent_pos
 
         # Sprung notwendig? (normale Hindernislogik)
-        need_to_jump = (obst_start[0] - jump_distance) <= x < obst_start[0] and y == floor_height + 1
+        need_to_jump = (obst_start - jump_distance) <= x < obst_start and y == floor_height + 1
 
         # Frühzeitige zufällige Sprünge (exploration) — aber nicht im Landebereich
         before_jump_window = x < first_perfect_jump_index - lookahead
         do_random_jump = before_jump_window and random.random() < random_jump_prob and y == floor_height + 1
-
+        # TODO after obstacle random jumps
         # Sprungentscheidung
-        if need_to_jump or do_random_jump:
+        if  do_random_jump :#or need_to_jump:
             action = 3  # jump
-            agent_pos = (x + 1, y + 2)  # nach oben springen
+            agent_pos = (x + 1, y + 1)  # nach oben springen
         else:
-            action = 0  # do_nothing
+            action = env_actions[step]  # do_nothing
             new_y = y - 1 if y > floor_height + 1 else y
             agent_pos = (x + 1, new_y)
 
