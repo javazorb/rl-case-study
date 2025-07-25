@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import config
@@ -25,6 +26,7 @@ class QEnvironment:
         #self.start_position = start_pos if start_pos is not None else (0, floor_height + 1)
         self.current_position = self.start_position
         self.state = np.zeros((1, self.size, self.size), dtype=np.float32)
+        #self.state = torch.from_numpy(self.environment)
         #self.state = np.zeros((1, self.size, self.size), dtype=np.uint8)
         self.done = False
 

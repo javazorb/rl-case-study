@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import copy
 from PIL import Image
 import config
+from data import dataset
 from data.generate_environment import generate_environment
 from entitites.replay_buffer import ReplayBuffer
 from environments.QEnvironment import QEnvironment
@@ -29,7 +30,8 @@ def fill_buffer(data_loader):
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     for envs, actions in data_loader:
         for env, env_actions in zip(envs, actions):
-            curr_env = QEnvironment(size=config.ENV_SIZE, environment=env, start_pos=None)
+            floor_height = dataset.get_env_floor_height(env.cpu().numpy())
+            curr_env = QEnvironment(size=config.ENV_SIZE, environment=env.cpu().numpy())
 
             state = curr_env.state.copy()
             for action in env_actions:
