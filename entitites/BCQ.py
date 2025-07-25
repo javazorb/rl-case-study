@@ -1,3 +1,6 @@
+import random
+from itertools import islice
+
 import torch
 import torch.nn.functional as F
 import copy
@@ -28,6 +31,8 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
 
 def fill_buffer(data_loader):
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
+    random.shuffle(data_loader)
+    data_loader = islice(data_loader, int(0.3 * len(data_loader)))
     for envs, actions in data_loader:
         for env, env_actions in zip(envs, actions):
             floor_height = dataset.get_env_floor_height(env.cpu().numpy())
@@ -38,7 +43,7 @@ def fill_buffer(data_loader):
                 next_state, reward, done = curr_env.step(action)
                 buffer.push(state, action, reward, next_state, done)
                 state = next_state.copy()
-
+    print(f"Replay buffer size: {len(buffer)}")
     return buffer
 
 

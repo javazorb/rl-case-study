@@ -72,7 +72,7 @@ def run():
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
-    buffer = fill_buffer(train_loader)
+    buffer = fill_buffer(list(train_loader) + list(val_loader))
     train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
 
 
