@@ -32,10 +32,15 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
 def fill_buffer(data_loader):
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     random.shuffle(data_loader)
-    data_loader = islice(data_loader, int(0.3 * len(data_loader)))
+    data_loader = islice(data_loader, int(0.5 * len(data_loader)))
+    jump_counter_in_buffer = 0
     for envs, actions in data_loader:
         for env, env_actions in zip(envs, actions):
             floor_height = dataset.get_env_floor_height(env.cpu().numpy())
+            obst_start, obst_end = dataset.get_obst_positions(env, floor_height)
+            env_actions = generate_jumpy_actions_with_random_jumps(env, env_actions)
+
+
             curr_env = QEnvironment(size=config.ENV_SIZE, environment=env.cpu().numpy())
 
             state = curr_env.state.copy()
@@ -43,8 +48,74 @@ def fill_buffer(data_loader):
                 next_state, reward, done = curr_env.step(action)
                 buffer.push(state, action, reward, next_state, done)
                 state = next_state.copy()
-    print(f"Replay buffer size: {len(buffer)}")
+                if action == 3:
+                    jump_counter_in_buffer += 1
+    print(f"Replay buffer size: {len(buffer)}   Jump counter: {jump_counter_in_buffer}")
     return buffer
+
+def generate_jumpy_actions_with_random_jumps(environment, actions, max_steps=config.ENV_SIZE, random_jump_prob=0.3):
+    """
+    Generiert Aktionen, die vor Hindernissen springen
+    und zusätzlich mit einer Wahrscheinlichkeit random_jump_prob zufällig springen,
+    um die Sprunganzahl zu erhöhen.
+
+    Args:
+        environment (np.ndarray): 60x60 uint8 Environment
+
+
+    Returns:
+        List[int]: Aktionsliste mit 0 (do_nothing) und 3 (jump)
+    """
+    actions = []
+    lookahead = 5
+    floor_height = dataset.get_env_floor_height(environment)
+    agent_pos = (0, floor_height + 1)  # Startposition
+    obst_start, obst_end = dataset.get_env_floor_height(environment, floor_height)
+    first_perfect_jump = next(action for action in actions if action == config.QActions.JUMP_RIGHT)
+    agent_pos = (0, floor_height + 1)  # Startposition
+
+    # Hindernisinformation
+    obst_start, obst_end = dataset.get_env_floor_height(environment, floor_height)
+
+    # Berechne Index des ersten perfekten Sprungs
+    # -> das ist die Position, an der normalerweise der Expert springen würde
+    first_perfect_jump_index = first_perfect_jump
+    jump_distance = obst_start[0] - first_perfect_jump_index
+
+    for step in range(max_steps):
+        x, y = agent_pos
+
+        # Sprung notwendig? (normale Hindernislogik)
+        need_to_jump = (obst_start[0] - jump_distance) <= x < obst_start[0] and y == floor_height + 1
+
+        # Frühzeitige zufällige Sprünge (exploration) — aber nicht im Landebereich
+        before_jump_window = x < first_perfect_jump_index - lookahead
+        do_random_jump = before_jump_window and random.random() < random_jump_prob and y == floor_height + 1
+
+        # Sprungentscheidung
+        if need_to_jump or do_random_jump:
+            action = 3  # jump
+            agent_pos = (x + 1, y + 2)  # nach oben springen
+        else:
+            action = 0  # do_nothing
+            new_y = y - 1 if y > floor_height + 1 else y
+            agent_pos = (x + 1, new_y)
+
+        # Agent darf nicht unter Bodenhöhe sinken
+        if agent_pos[1] < floor_height + 1:
+            agent_pos = (agent_pos[0], floor_height + 1)
+
+        actions.append(action)
+
+        # Falls Agent am rechten Rand ist, abbrechen
+        if agent_pos[0] >= environment.shape[1] - 1:
+            break
+
+    # Falls Aktionen kürzer als max_steps sind, mit do_nothing auffüllen
+    while len(actions) < max_steps:
+        actions.append(0)
+
+    return actions
 
 
 def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):

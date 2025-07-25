@@ -82,7 +82,7 @@ def get_obstacle_height(environment, obst_start_pos):
     return height
 
 
-def calculate_optimal_trajectory(environment, env_index):
+def calculate_optimal_trajectory(environment, env_index, save=True):
     """
     Calculates the optimal trajectory to be used for the given environment and its id
     :param env_index:
@@ -134,19 +134,19 @@ def calculate_optimal_trajectory(environment, env_index):
                 else:
                     reached_floor = True
                     break  # Stop when back at floor height
+    if save:
+        plt.imshow(environment, cmap='gray', origin='lower', vmin=0, vmax=255)
+        plt.axis('off')
+        #plt.show()
+        if not os.path.exists('data/images/optimal_paths'):
+            os.makedirs('data/images/optimal_paths')
+        plt.savefig(os.path.join('data/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight', pad_inches=0)
+        plt.close()
 
-    plt.imshow(environment, cmap='gray', origin='lower', vmin=0, vmax=255)
-    plt.axis('off')
-    #plt.show()
-    if not os.path.exists('data/images/optimal_paths'):
-        os.makedirs('data/images/optimal_paths')
-    plt.savefig(os.path.join('data/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight', pad_inches=0)
-    plt.close()
-
-    if not os.path.exists('data/optimal_paths'):
-        os.makedirs('data/optimal_paths')
-    save_path = os.path.join('data/optimal_paths' + os.sep, f'environment{env_index}.npy')
-    np.save(save_path, environment)
+        if not os.path.exists('data/optimal_paths'):
+            os.makedirs('data/optimal_paths')
+        save_path = os.path.join('data/optimal_paths' + os.sep, f'environment{env_index}.npy')
+        np.save(save_path, environment)
 
     return environment, agent_positions
 
