@@ -255,7 +255,7 @@ class QEnvironment:
         obstacle_start, obstacle_end = dataset.get_obst_positions(self.environment, floor_height)
         obstacle_height = dataset.get_obstacle_height(self.environment, obstacle_start)
         if x in range(obstacle_start, obstacle_end) and y > floor_height + 1:
-            reward += 1.5
+            reward += 2
         if y > floor_height + 1 and action != 3:  # Gravity
             y -= 1
         if y > config.ENV_SIZE - 1:
@@ -269,7 +269,7 @@ class QEnvironment:
             reward -= 10
 
         self.current_position = (x, y)
-        if self.current_position == self.goal_position:
+        if self.current_position == self.goal_position or x == config.ENV_SIZE - 1:
             done = True
             reward += 10
 

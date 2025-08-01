@@ -21,26 +21,31 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
 
         print(f"[Epoch {epoch}] Total loss: {logs['total_loss']:.4f}, Q: {logs['q_loss']:.4f}, I: {logs['i_loss']:.4f}")
         if epoch % EVAL_FREQUENCY == 0:
+            pass
             eval_env = QEnvironment(size=config.ENV_SIZE, environment=generate_environment(), start_pos=None)
 
             gif_path = f"eval_outputs/epoch_{epoch}.gif"
             if not os.path.exists("eval_outputs"):
                 os.makedirs("eval_outputs")
-            evaluate_and_save_gif(agent, eval_env, gif_path)
+            #evaluate_and_save_gif(agent, eval_env, gif_path)
 
 
-def fill_buffer(data_loader):
+def fill_buffer(data_loader, jumpy_ratio=0.4):
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     random.shuffle(data_loader)
+    jumpy_cnt = len(data_loader) * config.BATCH_SIZE * jumpy_ratio
     data_loader = islice(data_loader, int(0.5 * len(data_loader)))
     jump_counter_in_buffer = 0
+
     for envs, actions in data_loader:
         for env, env_actions in zip(envs, actions):
             environment = env.cpu().numpy()
             env_actions = env_actions.cpu().numpy()
             floor_height = dataset.get_env_floor_height(environment)
             obst_start, obst_end = dataset.get_obst_positions(environment, floor_height)
-            env_actions = generate_jumpy_actions_with_random_jumps(environment, env_actions)
+            if jumpy_cnt > 1:
+                env_actions = generate_jumpy_actions_with_random_jumps(environment, env_actions)
+                jumpy_cnt -= 1
 
 
             curr_env = QEnvironment(size=config.ENV_SIZE, environment=env.cpu().numpy())
@@ -55,7 +60,7 @@ def fill_buffer(data_loader):
     print(f"Replay buffer size: {len(buffer)}   Jump counter: {jump_counter_in_buffer}")
     return buffer
 
-def generate_jumpy_actions_with_random_jumps(environment, env_actions, max_steps=config.ENV_SIZE, random_jump_prob=0.7):
+def generate_jumpy_actions_with_random_jumps(environment, env_actions, max_steps=config.ENV_SIZE, random_jump_prob=0.5):
     """
     generates jump actions with random jumps that jump before the obstacle occurs.
     The random jumps have a probabilit of occuring
@@ -102,6 +107,9 @@ def generate_jumpy_actions_with_random_jumps(environment, env_actions, max_steps
             action = env_actions[step]  # do_nothing
             new_y = y - 1 if y > floor_height + 1 else y
             agent_pos = (x + 1, new_y)
+        if x > obst_end and random.random() < random_jump_prob:
+            action = 3
+            agent_pos = (x + 1, y + 1)
 
         # Agent darf nicht unter Bodenhöhe sinken
         if agent_pos[1] < floor_height + 1:
