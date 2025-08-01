@@ -98,7 +98,7 @@ def generate_jumpy_actions_with_random_jumps(environment, env_actions, max_steps
         # Frühzeitige zufällige Sprünge (exploration) — aber nicht im Landebereich
         before_jump_window = x < first_perfect_jump_index - lookahead
         do_random_jump = before_jump_window and random.random() < random_jump_prob and y == floor_height + 1
-        # TODO after obstacle random jumps
+
         # Sprungentscheidung
         if  do_random_jump :#or need_to_jump:
             action = 3  # jump
