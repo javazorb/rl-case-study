@@ -34,8 +34,8 @@ def load_model(name, model):
 
 
 def run():
-    envs = data_gen()
-    sets_generation()
+    # envs = data_gen()
+    # sets_generation()
     behavior_cloning = bc_model.BehavioralModel()
     train_data = data.load_dataset('train_data', 'data')
     test_data = data.load_dataset('test_data', 'data')
@@ -49,7 +49,7 @@ def run():
     #acc = train_bc.test_accuracy(bc_agent.model, config.get_device(), test_set)
     #print(f'Test Accuracy: {acc}')
     #best_params = hyperparameter.search_hyperparameters(behavior_cloning, learning_rates=[0.001, 0.0005, 0.0001],
-    #                                                   batch_sizes=[10, 32, 64, 128], optimizers=[optim.Adam, optim.SGD],
+    #                                                   batch_sizes=[10, 32, 64, 128], optimizers=[optim.Adam, optim.SGD, optim.AdamW],
     #                                                   train_set=train_set, val_set=val_set)
     #print(best_params)
     #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
@@ -86,7 +86,7 @@ def sets_generation():
 
 
 def data_gen():
-    generate_data.generate_and_save_environments(num_environments=1000, obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_END / 2, config.OBSTACLE_RANGE_HEIGHT_END / 2 + 1), floor_height_range=(config.FLOOR_HEIGHT_RANGE_END / 2, config.FLOOR_HEIGHT_RANGE_END / 2 + 1))
+    generate_data.generate_and_save_environments(num_environments=10000, obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_END / 2, config.OBSTACLE_RANGE_HEIGHT_END / 2 + 1), floor_height_range=(config.FLOOR_HEIGHT_RANGE_END / 2, config.FLOOR_HEIGHT_RANGE_END / 2 + 1))
     #generate_data.generate_and_save_environments(num_environments=1000)
     envs = generate_data.load_environments()
     save_optimal_paths(envs)
