@@ -32,11 +32,13 @@ def visualize_and_save_env(environment, save_path):
     plt.close()
 
 
-def generate_and_save_environments(num_environments=100, save_directory='data/envs', visualize=True):
+def generate_and_save_environments(num_environments=100, save_directory='data/envs', visualize=True,
+                                   floor_height_range=(config.FLOOR_HEIGHT_RANGE_START, config.FLOOR_HEIGHT_RANGE_END),
+                                   obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_START, config.OBSTACLE_RANGE_HEIGHT_END)):
     if not os.path.exists(save_directory):
         os.makedirs(save_directory)
     for i in tqdm(range(num_environments), desc='Generating Environments', unit='Environment'):
-        environment = generate_environment()
+        environment = generate_environment(floor_height_range=floor_height_range, obstacle_height_range=obstacle_height_range)
         save_path = os.path.join(save_directory, f'environment{i}.npy')
         np.save(save_path, environment)
         if visualize:

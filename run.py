@@ -34,8 +34,8 @@ def load_model(name, model):
 
 
 def run():
-    #envs = data_gen()
-    #sets_generation()
+    envs = data_gen()
+    sets_generation()
     behavior_cloning = bc_model.BehavioralModel()
     train_data = data.load_dataset('train_data', 'data')
     test_data = data.load_dataset('test_data', 'data')
@@ -53,10 +53,10 @@ def run():
     #                                                   train_set=train_set, val_set=val_set)
     #print(best_params)
     #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
-    #train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
-    #               optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
+    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
+                   optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
 
-    #test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
+    test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
     q_net = q_model.QModel()
     #trained_q = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
@@ -68,13 +68,12 @@ def run():
     #q_agent.train(train_set, val_set)
     #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
     model = bcq_model.BCQModel()
-    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
+    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.05)
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
     buffer = fill_buffer(list(train_loader) + list(val_loader), jumpy_ratio=0.5)
     train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
-
 
 
 def sets_generation():
@@ -87,6 +86,7 @@ def sets_generation():
 
 
 def data_gen():
+    generate_data.generate_and_save_environments(num_environments=1000, obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_END / 2, config.OBSTACLE_RANGE_HEIGHT_END / 2 + 1), floor_height_range=(config.FLOOR_HEIGHT_RANGE_END / 2, config.FLOOR_HEIGHT_RANGE_END / 2 + 1))
     #generate_data.generate_and_save_environments(num_environments=1000)
     envs = generate_data.load_environments()
     save_optimal_paths(envs)
@@ -95,7 +95,8 @@ def data_gen():
 
 def save_optimal_paths(envs):
     agent_positions_all_envs = []
-    for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths", unit="Environments"):
+    for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
+                                unit="Environments"):
         _, agent_positions = data.calculate_optimal_trajectory(env, index)
         agent_positions_all_envs.append((index, sorted(list(set(agent_positions)), key=lambda x: x[1])))
     with open('data' + os.sep + 'optimal_paths.json', 'w') as file:
