@@ -53,10 +53,10 @@ def run():
     #                                                   train_set=train_set, val_set=val_set)
     #print(best_params)
     #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
-    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
-                   optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
+    # train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
+    #                optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
 
-    test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
+    # test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
     q_net = q_model.QModel()
     #trained_q = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
@@ -72,7 +72,7 @@ def run():
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
-    buffer = fill_buffer(list(train_loader) + list(val_loader), jumpy_ratio=0.5)
+    buffer = fill_buffer(list(train_loader))
     train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
 
 

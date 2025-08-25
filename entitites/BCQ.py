@@ -1,6 +1,6 @@
 import random
 from itertools import islice
-
+import numpy as np
 import torch
 import torch.nn.functional as F
 import copy
@@ -27,37 +27,56 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             gif_path = f"eval_outputs/epoch_{epoch}.gif"
             if not os.path.exists("eval_outputs"):
                 os.makedirs("eval_outputs")
-            #evaluate_and_save_gif(agent, eval_env, gif_path)
+            evaluate_and_save_gif(agent, eval_env, gif_path)
 
 
-def fill_buffer(data_loader, jumpy_ratio=0.4):
+def fill_buffer(data_loader, oversample_factor=config.OVERSAMPLE_FACTOR):
+    """
+        Fill a replay buffer with expert trajectories, oversampling jump actions to increase their ratio.
+
+        Args:
+            data_loader: iterable of (environments, actions)
+            oversample_factor: int, how many extra times to push each jump action
+        Returns:
+            buffer: ReplayBuffer with filled transitions
+        """
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     random.shuffle(data_loader)
-    jumpy_cnt = len(data_loader) * config.BATCH_SIZE * jumpy_ratio
-    data_loader = islice(data_loader, int(0.5 * len(data_loader)))
     jump_counter_in_buffer = 0
 
     for envs, actions in data_loader:
         for env, env_actions in zip(envs, actions):
             environment = env.cpu().numpy()
             env_actions = env_actions.cpu().numpy()
-            floor_height = dataset.get_env_floor_height(environment)
-            obst_start, obst_end = dataset.get_obst_positions(environment, floor_height)
-            if jumpy_cnt > 1:
-                env_actions = generate_jumpy_actions_with_random_jumps(environment, env_actions)
-                jumpy_cnt -= 1
 
-
-            curr_env = QEnvironment(size=config.ENV_SIZE, environment=env.cpu().numpy())
+            expert_path = dataset.reconstruct_path(environment, env_actions)
+            random_start_idx = np.random.randint(len(expert_path))
+            curr_env = QEnvironment(size=config.ENV_SIZE, environment=env.cpu().numpy(), start_pos=expert_path[random_start_idx])
 
             state = curr_env.state.copy()
             for action in env_actions:
                 next_state, reward, done = curr_env.step(action)
                 buffer.push(state, action, reward, next_state, done)
                 state = next_state.copy()
+
                 if action == 3:
                     jump_counter_in_buffer += 1
-    print(f"Replay buffer size: {len(buffer)}   Jump counter: {jump_counter_in_buffer}")
+                if action == 3 and random.random() < 1:
+                    for _ in range(oversample_factor):
+                        buffer.push(state, action, reward, next_state, done)
+                        jump_counter_in_buffer += 1
+                if done:
+                    break
+
+    jump_count = sum(1 for t in buffer.buffer if t[1] == 3)  # action==3 is jump
+    non_jump_count = len(buffer) - jump_count
+
+    jump_ratio = jump_count / len(buffer)
+    non_jump_ratio = non_jump_count / len(buffer)
+
+    print(f"Total transitions: {len(buffer)}")
+    print(f"Jump actions: {jump_count} ({jump_ratio:.2f})")
+    print(f"Non-jump actions: {non_jump_count} ({non_jump_ratio:.2f})")
     return buffer
 
 def generate_jumpy_actions_with_random_jumps(environment, env_actions, max_steps=config.ENV_SIZE, random_jump_prob=0.5):
@@ -135,22 +154,22 @@ def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):
 
     for step in range(max_steps):
         frame = env.render(mode='rgb_array')
-        frames.append(Image.fromarray(frame))
+        #frames.append(Image.fromarray(frame))
         action = agent.select_action(state)
         next_state, reward, done = env.step(action)
         state = next_state
         total_reward += reward
         if done:
             break
-    frames.append(Image.fromarray(env.render(mode="rgb_array")))
+    #frames.append(Image.fromarray(env.render(mode="rgb_array")))
 
-    frames[0].save(
-        gif_path,
-        save_all=True,
-        append_images=frames[1:],
-        duration=100,
-        loop=0
-    )
+    #frames[0].save(
+    #    gif_path,
+    #    save_all=True,
+    #    append_images=frames[1:],
+    #    duration=100,
+    #    loop=0
+    #)
     print(f"[GIF] Gespeichert unter {gif_path} | Reward: {total_reward:.2f}")
 
 
@@ -174,12 +193,13 @@ class DiscreteBCQAgent:
             imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
             final_q = imt * q + (1 - imt) * -1e8
             action = final_q.argmax(1).item()
+            if action == 1:
+                action = 3
         return action
 
     def train(self, replay_buffer, batch_size=32):
         self.model.train()
         self.model.to(self.device)
-
 
         # Sample
         states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
@@ -211,10 +231,10 @@ class DiscreteBCQAgent:
             threshold_mask = (imt_next / imt_next.max(1, keepdim=True)[0] > self.threshold).float()
             q_next = threshold_mask * q_next + (1 - threshold_mask) * -1e8 #-1e8  # maskiere nicht-expert-Aktionen
             next_actions = q_next.argmax(1, keepdim=True)
-            #next_actions[next_actions == 1] = 3
             mask = (next_actions == 1)
             next_actions = torch.where(mask, torch.tensor(3, device=next_actions.device), next_actions)
-            target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
+            #target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
+            target_q = rewards + self.gamma * (1 - dones) * q_next.gather(1, next_actions)
 
         # Current Q + Imitation
         q_values, imt, i_logits = self.model(states)

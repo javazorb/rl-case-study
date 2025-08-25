@@ -287,13 +287,13 @@ class QEnvironment:
         floor_height = dataset.get_env_floor_height(self.environment)
         print(f"Floor height: {floor_height}       current position: {self.current_position}               done: {self.done}")
         fig = Figure(figsize=(3, 3), dpi=60)
-        canvas = FigureCanvas(fig)
-        ax = fig.add_subplot(111)
-        eval_env[self.current_position[0], self.current_position[1] + floor_height] = config.AGENT
-        ax.imshow(eval_env, cmap='hot', origin='lower', vmin=0, vmax=255)
-        ax.axis('off')
-        canvas.draw()
-        buf = canvas.buffer_rgba()
-        image = np.asarray(buf)
+        #canvas = FigureCanvas(fig)
+        #ax = fig.add_subplot(111)
+        #eval_env[self.current_position[0], self.current_position[1] + floor_height] = config.AGENT
+        #ax.imshow(eval_env, cmap='hot', origin='lower', vmin=0, vmax=255)
+        #ax.axis('off')
+        #canvas.draw()
+        #buf = canvas.buffer_rgba()
+        #image = np.asarray(buf)
         plt.close(fig)
-        return image
+        return None#image
