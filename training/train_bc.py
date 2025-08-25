@@ -1,3 +1,5 @@
+from collections import Counter
+
 import torch
 from tqdm import tqdm
 from torch.utils.data import DataLoader
@@ -6,6 +8,28 @@ import numpy as np
 import copy
 import data.dataset as dataset
 
+
+def get_action_weights(train_data, device):
+    counts = Counter()
+    for _, actions in DataLoader(train_data, **config.PARAMS):
+        for act in actions.numpy().flatten():
+            counts[int(act)] += 1
+
+    total = sum(counts.values())
+    num_actions = len(config.Actions)
+    weights = torch.zeros(num_actions, dtype=torch.float)
+    for action in range(num_actions):
+        if counts[action] > 0:
+            weights[action] = total / (num_actions * counts[action])
+        else:
+            weights[action] = 0# inverse frequency
+
+
+    alpha = 0.5
+    weights[0] = 1 + alpha * (weights[0] - 1)
+    print("Action counts:", dict(counts))
+    print("Action weights:", weights.tolist())
+    return weights.to(device)
 
 def train(model, device, train_data, val_data, optimizer, criterion, early_stopping=10):
     np.random.seed(config.RANDOM_SEED) # TODO remodel to only jump action because jumping environment moves every state update by once to the rright
@@ -19,11 +43,14 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
     train_loss = 0
     epochs_ran = 0
 
+    weights = get_action_weights(train_data, device)
+    criterion = torch.nn.CrossEntropyLoss(weight=weights)
+
     for epoch in range(config.MAX_EPOCHS):
         model.train()
         batch_loss = 0
+        epoch_loss = 0
         for environments, actions in tqdm(train_loader, desc=f"Training Epoch: {epoch + 1}/{config.MAX_EPOCHS}"):
-            mini_batch_loss = 0
             expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
                             zip(environments, actions)]
             agent_start_positions = []
@@ -44,16 +71,13 @@ def train(model, device, train_data, val_data, optimizer, criterion, early_stopp
                 cur_loss = criterion(predicted_actions, torch.LongTensor(correct_actions).to(device))
                 cur_loss.backward()
                 optimizer.step()
-                mini_batch_loss = cur_loss.item()
+                epoch_loss = cur_loss.item()
                 agent_start_positions = dataset.update_agent_pos(agent_start_positions,
                                                                  expert_paths)  # updated along the expert path
-            mini_batch_loss /= config.NUM_STEPS_ENV
-            batch_loss += mini_batch_loss
-        batch_loss /= config.BATCH_SIZE
-        train_loss += batch_loss
 
+        epoch_loss /= len(train_loader)
         val_loss = loss(model, device, val_loader, criterion)
-        print(f'Validation loss: {val_loss} at epoch {epoch + 1}/{config.MAX_EPOCHS}')
+        print(f"[Epoch {epoch+1}] Train loss: {epoch_loss:.4f} | Val loss: {val_loss:.4f}")
         if val_loss < best_val_loss:
             print(f'New best validation loss: {val_loss}\n old best validation loss: {best_val_loss}')
             best_val_loss = val_loss
@@ -110,6 +134,8 @@ def test_accuracy(model, device, test_data):
     model.eval()  # Set the model to evaluation mode
     correct = 0
     total = 0
+    total_predicted = []
+    num_jump_right = 0
     test_loader = DataLoader(test_data, **config.PARAMS)
     with torch.no_grad():  # No need to track gradients during inference
         for environments, actions in test_loader:
@@ -134,12 +160,16 @@ def test_accuracy(model, device, test_data):
                 predicted_classes = torch.argmax(predicted_actions, dim=1)
                 action_idxs = [x for x, y in agent_start_positions]
                 correct_actions = [actions[i][action_idxs[i]] for i in range(len(action_idxs))]
+                num_jump_right += correct_actions.count(config.Actions.JUMP_RIGHT.value)
+
                 # Convert actions to a tensor on the same device
                 correct_actions = torch.LongTensor(correct_actions).to(device)
                 agent_start_positions = dataset.update_agent_pos(agent_start_positions, expert_paths)
                 # Calculate how many predictions are correct
                 correct += (predicted_classes == correct_actions).sum().item()
+                total_predicted.append(predicted_classes.tolist())
+
                 total += correct_actions.size(0)
 
     accuracy = correct / total  # Calculate accuracy
-    return accuracy
+    return accuracy, total_predicted, num_jump_right

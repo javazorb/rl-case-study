@@ -52,11 +52,17 @@ def run():
     #                                                   batch_sizes=[10, 32, 64, 128], optimizers=[optim.Adam, optim.SGD, optim.AdamW],
     #                                                   train_set=train_set, val_set=val_set)
     #print(best_params)
-    #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001), criterion=nn.CrossEntropyLoss())
-    # train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
-    #                optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
-
-    # test_accuracy(behavior_cloning, test_set, 'final_BC_state_dict')
+    #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001, criterion=nn.CrossEntropyLoss())
+    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
+                    optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
+    behavior_cloning = load_model('final_BC_state_dict', behavior_cloning)
+    acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
+    pred_array = np.array([p for batch in total_actions_predicted for p in batch])
+    jump_mask = (pred_array == config.Actions.JUMP_RIGHT.value)
+    jump_count = jump_mask.sum()
+    total_preds = pred_array.size
+    print(f'accuracy: {acc}')
+    print(f'jump count versus total predictions: {jump_count} / {total_preds}   Number of jump right of experts: {num_counts_jump_right}')
     q_net = q_model.QModel()
     #trained_q = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
@@ -67,13 +73,14 @@ def run():
     #q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
     #q_agent.train(train_set, val_set)
     #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
-    model = bcq_model.BCQModel()
-    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.05)
-    buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
-    train_loader = DataLoader(train_set, **config.PARAMS)
-    val_loader = DataLoader(val_set, **config.PARAMS)
-    buffer = fill_buffer(list(train_loader))
-    train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
+
+    # model = bcq_model.BCQModel()
+    # agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.2)
+    # buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
+    # train_loader = DataLoader(train_set, **config.PARAMS)
+    # val_loader = DataLoader(val_set, **config.PARAMS)
+    # buffer = fill_buffer(list(train_loader))
+    # train_bcq(agent, buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32)
 
 
 def sets_generation():
