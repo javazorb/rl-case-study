@@ -11,6 +11,7 @@ import data.generate_environment as generate_data
 import data.dataset as data
 import tqdm
 import training.train_bc as train_bc
+import training.train_bc_new as train_bc_new
 import training.train_q as train_q
 import models.bc_model as bc_model
 import models.q_model as q_model
@@ -53,16 +54,23 @@ def run():
     #                                                   train_set=train_set, val_set=val_set)
     #print(best_params)
     #optimizer=optim.Adam(behavior_cloning.parameters(), lr=0.001, criterion=nn.CrossEntropyLoss())
-    train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
-                    optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
-    behavior_cloning = load_model('final_BC_state_dict', behavior_cloning)
-    acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
-    pred_array = np.array([p for batch in total_actions_predicted for p in batch])
-    jump_mask = (pred_array == config.Actions.JUMP_RIGHT.value)
-    jump_count = jump_mask.sum()
-    total_preds = pred_array.size
+
+    #train_bc.train(behavior_cloning, config.get_device(), train_set, val_set,
+    #                optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
+    #behavior_cloning = load_model('final_BC_state_dict', behavior_cloning)
+    #acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
+
+
+    train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001, weight_decay=1e-4), criterion=None)
+    #behavior_cloning = load_model("final_BC_state_dict", behavior_cloning)
+    acc, total_actions_predicted, num_counts_jump_right, expert_jump_right = train_bc_new.test_accuracy(behavior_cloning,
+                                                                                     config.get_device(), test_set)
+    #pred_array = np.array([p for batch in total_actions_predicted for p in batch])
+    #jump_mask = (pred_array == config.Actions.JUMP_RIGHT.value)
+    #jump_count = jump_mask.sum()
+    #total_preds = pred_array.size
     print(f'accuracy: {acc}')
-    print(f'jump count versus total predictions: {jump_count} / {total_preds}   Number of jump right of experts: {num_counts_jump_right}')
+    print(f'jump count versus total predictions: {num_counts_jump_right} / {len(total_actions_predicted)}   Number of jump right of experts: {expert_jump_right}')
     q_net = q_model.QModel()
     #trained_q = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())

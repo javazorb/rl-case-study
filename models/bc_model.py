@@ -17,5 +17,5 @@ class BehavioralModel(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
-        x = nn.functional.softmax(x, dim=1)
+        # x = nn.functional.softmax(x, dim=1)
         return x

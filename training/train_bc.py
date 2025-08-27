@@ -26,7 +26,7 @@ def get_action_weights(train_data, device):
 
 
     alpha = 0.5
-    weights[0] = 1 + alpha * (weights[0] - 1)
+    weights[0] = (1 + alpha * (weights[0] - 1)) / 1.5
     print("Action counts:", dict(counts))
     print("Action weights:", weights.tolist())
     return weights.to(device)
