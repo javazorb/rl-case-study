@@ -30,7 +30,7 @@ def get_action_weights(train_data, device):
     # Adjustment for run_right bias (action 0)
     alpha = 0.5
     weights[0] = (1 + alpha * (weights[0] - 1)) / 1.5
-
+    weights[-1] = weights[-1] * 1.25
     print("Action counts:", dict(counts))
     print("Action weights:", weights.tolist())
     return weights.to(device)
@@ -57,11 +57,17 @@ def collect_training_windows(environments, actions, expert_paths, num_samples=5,
             # look for any jump actions along this path
             jump_idxs = np.where(np.isin(actions[i], [config.Actions.JUMP.value, config.Actions.JUMP_RIGHT.value]))[0]
             if len(jump_idxs) > 0:
-                j = np.random.choice(jump_idxs)
-                x, y = expert_path[min(j, len(expert_path)-1)]
-                window = dataset.extract_env_windows(environments[i:i+1], [(x, y)], config.WINDOW_LEN)[0]
-                batch_states.append(window)
-                batch_labels.append(actions[i][x])
+                picked_idx = np.random.choice(jump_idxs, int(len(jump_idxs) / 1.5), replace=False)
+                for idx in range(len(picked_idx)):#range(int(len(jump_idxs) / 2)):
+                    x, y = expert_path[min(idx, len(expert_path)-1)]
+                    window = dataset.extract_env_windows(environments[i:i + 1], [(x, y)], config.WINDOW_LEN)[0]
+                    batch_states.append(window)
+                    batch_labels.append(actions[i][x])
+                #j = np.random.choice(jump_idxs)
+                #x, y = expert_path[min(j, len(expert_path)-1)]
+                #window = dataset.extract_env_windows(environments[i:i+1], [(x, y)], config.WINDOW_LEN)[0]
+                #batch_states.append(window)
+                #batch_labels.append(actions[i][x])
 
     return np.stack(batch_states), np.array(batch_labels)
 
