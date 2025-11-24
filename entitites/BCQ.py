@@ -28,6 +28,8 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             if not os.path.exists("eval_outputs"):
                 os.makedirs("eval_outputs")
             evaluate_and_save_gif(agent, eval_env, gif_path)
+    config.save_model(agent.model, name="final_BCQ")
+    print("Training complete.")
 
 
 def fill_buffer(data_loader, oversample_factor=config.OVERSAMPLE_FACTOR):
