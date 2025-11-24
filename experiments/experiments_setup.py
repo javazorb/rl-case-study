@@ -15,6 +15,16 @@ import matplotlib.pyplot as plt
 from collections import deque
 import random
 
+from torch.utils.data import DataLoader
+
+import models.bc_model as bc_model
+import models.q_model as q_model
+import models.bcq_model as bcq_model
+from run import load_model
+import data.generate_environment as generate_data
+import data.dataset as data
+from data.dataloader import EnvironmentDataset
+
 # =====================================================
 # CONFIGURATION
 # =====================================================
@@ -589,6 +599,12 @@ def plot_experiment_5(action_counts_dict):
     plot_action_distribution(action_counts_dict, save_path="experiments/exp05/plots/action_distribution.png")
 
 
+
+def load_model_setup(name, model):
+    path = f'../trained_models/{name}.pt'
+    model = model
+    model.load_state_dict(torch.load(path))
+    return model
 # =====================================================
 # EXPERIMENT FUNCTIONS (1–5)
 # =====================================================
@@ -601,32 +617,44 @@ if __name__ == "__main__":
     # ------------------------------
     # Prepare environments and dataset
     # ------------------------------
-    train_envs = [JumpEnv() for _ in range(600)]
-    val_envs = [JumpEnv() for _ in range(200)]
-    test_envs = [JumpEnv() for _ in range(200)]
+    #train_envs = [JumpEnv() for _ in range(600)]
+    #val_envs = [JumpEnv() for _ in range(200)]
+    #test_envs = [JumpEnv() for _ in range(200)]
+    train_data = data.load_dataset('train_data', '../data')
+    test_data = data.load_dataset('test_data', '../data')
+    val_data = data.load_dataset('val_data', '../data')
+    train_set = EnvironmentDataset(train_data)
+    val_set = EnvironmentDataset(val_data)
+    test_set = EnvironmentDataset(test_data)
+    train_envs = DataLoader(train_data, config.batch_size, shuffle=True, num_workers=0)
+    val_envs = DataLoader(val_data, config.batch_size, shuffle=True, num_workers=0)
+    test_envs = DataLoader(test_data, config.batch_size, shuffle=True, num_workers=0)
     
-    print("Generating expert dataset...")
-    expert_dataset = generate_expert_dataset(train_envs)
+    #print("Generating expert dataset...")
+    #expert_dataset = generate_expert_dataset(train_envs)
     
     # ------------------------------
     # Experiment 1: Baseline Performance
     # ------------------------------
     print("\n=== Experiment 1: Baseline Performance ===")
-    bc_model = CNNModel(len(config.action_space))
-    dqn_model = CNNModel(len(config.action_space))
-    bcq_model = CNNModel(len(config.action_space))
+    #bc_model = CNNModel(len(config.action_space))
+    bc_model = bc_model.BehavioralModel()
+    dqn_model = q_model.QModel()
+    bcq_model = bcq_model.BCQModel()
     
-    print("Training BC...")
-    bc_loss = train_bc(bc_model, expert_dataset)
-    print("Training DQN...")
-    dqn_loss, dqn_q, dqn_action_counts = train_dqn(dqn_model, train_envs, expert_dataset)
-    print("Training BCQ...")
-    bcq_loss = train_bcq(bcq_model, expert_dataset)
+    #print("Training BC...")
+    bc_model = load_model_setup("final_BC_state_dict_88_538", bc_model)
+    dqn_model = load_model_setup("final_Q_state_dict_final", dqn_model)
+    #bc_loss = train_bc(bc_model, expert_dataset)
+    #print("Training DQN...")
+    #dqn_loss, dqn_q, dqn_action_counts = train_dqn(dqn_model, train_envs, expert_dataset)
+    #print("Training BCQ...")
+    #bcq_loss = train_bcq(bcq_model, expert_dataset)
     
-    trained_models = {"BC": bc_model, "DQN": dqn_model, "BCQ": bcq_model}
+    trained_models = {"BC": bc_model, "DQN": dqn_model}#, "BCQ": bcq_model}
     
     print("Generating Experiment 1 plots...")
-    plot_experiment_1(bc_loss, dqn_loss, dqn_q, bcq_loss, test_envs, trained_models)
+    #plot_experiment_1(bc_loss, dqn_loss, dqn_q, bcq_loss, test_envs, trained_models)
     
     # ------------------------------
     # Experiment 2: Robustness to Altered Environments
@@ -658,7 +686,7 @@ if __name__ == "__main__":
     print("\n=== Experiment 5: Action Distribution Analysis ===")
     action_counts_dict = {
         "BC": np.random.randint(0, 10, len(config.action_space)),
-        "DQN": np.mean(dqn_action_counts, axis=0),
+        #"DQN": np.mean(dqn_action_counts, axis=0),
         "BCQ": np.random.randint(0, 10, len(config.action_space))
     }
     plot_experiment_5(action_counts_dict)
