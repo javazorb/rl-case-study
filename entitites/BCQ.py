@@ -1,4 +1,6 @@
 import random
+import sys
+import traceback
 from itertools import islice
 import numpy as np
 import torch
@@ -11,6 +13,46 @@ from data.generate_environment import generate_environment
 from entitites.replay_buffer import ReplayBuffer
 from environments.QEnvironment import QEnvironment
 import os
+
+def debug_forward(model, states):
+    states_cpu = states.detach().cpu()
+    print("states dtype:", states_cpu.dtype, "shape:", states_cpu.shape)
+    print("states min/max (CPU):", float(states_cpu.min().item()), float(states_cpu.max().item()))
+    print("any NaN in states (CPU):", torch.isnan(states_cpu).any().item())
+    print("any Inf in states (CPU):", torch.isinf(states_cpu).any().item())
+
+    # 1) Try forward on CPU to get a readable exception / stack trace inside forward()
+    try:
+        model_cpu = model.to("cpu")
+        with torch.no_grad():
+            out = model_cpu(states_cpu)
+        print("CPU forward succeeded. Outputs:")
+        if isinstance(out, (tuple, list)):
+            for i, o in enumerate(out):
+                if torch.is_tensor(o):
+                    print(f" out[{i}] shape/dtype: {o.shape} / {o.dtype}")
+                else:
+                    print(f" out[{i}] (non-tensor): {type(o)}")
+        else:
+            if torch.is_tensor(out):
+                print(" out shape/dtype:", out.shape, out.dtype)
+            else:
+                print(" out (non-tensor):", type(out))
+    except Exception:
+        print("CPU forward raised an exception (this is the most useful trace).")
+        traceback.print_exc(file=sys.stdout)
+        return
+
+    # 2) Try forward on CUDA to reproduce the device assert (optional)
+    try:
+        model_cuda = model.to("cuda")
+        states_cuda = states.detach().to("cuda")
+        with torch.no_grad():
+            out = model_cuda(states_cuda)
+        print("CUDA forward succeeded (surprising).")
+    except Exception:
+        print("CUDA forward raised device-side error (stack may be less readable):")
+        traceback.print_exc(file=sys.stdout)
 
 
 def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32):
@@ -238,6 +280,7 @@ class DiscreteBCQAgent:
             #target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
             target_q = rewards + self.gamma * (1 - dones) * q_next.gather(1, next_actions)
 
+        #debug_forward(self.model, states)
         # Current Q + Imitation
         q_values, imt, i_logits = self.model(states)
         q_values = q_values.gather(1, actions.unsqueeze(1))

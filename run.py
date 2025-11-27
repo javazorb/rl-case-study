@@ -88,6 +88,7 @@ def run():
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
     buffer = fill_buffer(list(train_loader))
+    #os.environ.setdefault("CUDA_LAUNCH_BLOCKING", "1")
     train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
 
