@@ -9,18 +9,19 @@ def generate_environment(size=(config.ENV_SIZE, config.ENV_SIZE),
                          obstacle_range=(config.OBSTACLE_RANGE_START, config.OBSTACLE_RANGE_END),
                          floor_height_range=(config.FLOOR_HEIGHT_RANGE_START, config.FLOOR_HEIGHT_RANGE_END),
                          obstacle_width=config.OBSTACLE_WIDTH,
-                         obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_START, config.OBSTACLE_RANGE_HEIGHT_END)):
+                         obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_START, config.OBSTACLE_RANGE_HEIGHT_END),
+                         nr_obstacles=1):
     environment = np.zeros(size, dtype=np.uint8)
     floor_height = np.random.randint(*floor_height_range + (1,))
     environment[floor_height, :] = config.WHITE
+    for _ in range(nr_obstacles):
+        obstacle_top = floor_height + 1  # Assuming obstacle is one unit higher than the floor
+        obstacle_bottom = obstacle_top + np.random.randint(*obstacle_height_range + (1,))
+        obstacle_left = np.random.randint(*obstacle_range + (1,))
+        obstacle_right = obstacle_left + obstacle_width
 
-    obstacle_top = floor_height + 1  # Assuming obstacle is one unit higher than the floor
-    obstacle_bottom = obstacle_top + np.random.randint(*obstacle_height_range + (1,))
-    obstacle_left = np.random.randint(*obstacle_range + (1,))
-    obstacle_right = obstacle_left + obstacle_width
-
-    i_top, i_bottom, i_left, i_right = map(int, [obstacle_top, obstacle_bottom, obstacle_left, obstacle_right])
-    environment[i_top:i_bottom, i_left:i_right] = config.WHITE  # Use 255 for white
+        i_top, i_bottom, i_left, i_right = map(int, [obstacle_top, obstacle_bottom, obstacle_left, obstacle_right])
+        environment[i_top:i_bottom, i_left:i_right] = config.WHITE  # Use 255 for white
 
     return environment
 
