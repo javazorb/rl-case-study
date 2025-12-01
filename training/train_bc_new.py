@@ -80,7 +80,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
     np.random.seed(config.RANDOM_SEED)
     torch.manual_seed(config.RANDOM_SEED)
     model.to(device)
-
+    losses = []
     best_val_loss = float("inf")
     stop_counter = 0
     best_model = copy.deepcopy(model)
@@ -118,6 +118,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
             epoch_loss += loss.item()
 
         epoch_loss /= len(train_loader)
+        losses.append(epoch_loss)
         val_loss = evaluate_loss(model, device, val_loader, criterion)
 
         print(f"[Epoch {epoch+1}] Train loss: {epoch_loss:.4f} | Val loss: {val_loss:.4f}")
@@ -137,6 +138,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
 
     config.save_model(best_model, name="final_BC")
     print("Training complete.")
+    return np.array(losses)
 
 
 def evaluate_loss(model, device, val_loader, criterion):

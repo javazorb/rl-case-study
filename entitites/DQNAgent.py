@@ -212,6 +212,7 @@ class DQNAgent(BaseAgent):
         train_loader = DataLoader(train_set, **config.PARAMS)
         val_loader = DataLoader(val_set, **config.PARAMS)
         replay_buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
+        losses = []
 
         warm_start_replay_buffer(replay_buffer, list(train_loader) + list(val_loader), self.device, hybrid_mode=True, agent=self)
         replay_buffer.visualize_content()
@@ -304,6 +305,7 @@ class DQNAgent(BaseAgent):
             avg_epoch_next_q = sum(epoch_next_qs) / len(epoch_next_qs)
            # action_dist = {i: int(epoch_action_counts[i].item()) for i in range(len(epoch_action_counts)) if
            #                epoch_action_counts[i] > 0}
+            losses.append(avg_train_loss)
             print(
                 f'Epoch {epoch + 1}/{config.MAX_EPOCHS} - Train Loss: {avg_train_loss:.4f} - Val Loss: {val_loss:.4f} - Epsilon: {epsilon:.4f}')
             print(f"Avg Q: {avg_epoch_q:.4f} | Avg Next Q: {avg_epoch_next_q:.4f}")
@@ -325,6 +327,7 @@ class DQNAgent(BaseAgent):
 
         config.save_model(best_model, name="final_Q")
         self.model = copy.deepcopy(best_model)
+        return np.array(losses)
 
 
     def evaluate(self, environment):

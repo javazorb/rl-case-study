@@ -57,10 +57,11 @@ def debug_forward(model, states):
 
 def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32):
     EVAL_FREQUENCY = 10
+    losses = []
     for epoch in range(num_epochs):
         for _ in range(steps_per_epoch):
             logs = agent.train(replay_buffer, batch_size)
-
+            losses.append(logs)
         print(f"[Epoch {epoch}] Total loss: {logs['total_loss']:.4f}, Q: {logs['q_loss']:.4f}, I: {logs['i_loss']:.4f}")
         if epoch % EVAL_FREQUENCY == 0:
             pass
@@ -72,6 +73,7 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             evaluate_and_save_gif(agent, eval_env, gif_path)
     config.save_model(agent.model, name="final_BCQ")
     print("Training complete.")
+    return np.array(losses)
 
 
 def fill_buffer(data_loader, oversample_factor=config.OVERSAMPLE_FACTOR):
