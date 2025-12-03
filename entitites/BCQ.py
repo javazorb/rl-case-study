@@ -226,7 +226,7 @@ class DiscreteBCQAgent:
         self.device = device
         self.model = model.to(device)
         self.target_model = copy.deepcopy(model).to(device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=lr)
         self.num_actions = num_actions
         self.threshold = threshold
         self.gamma = gamma
