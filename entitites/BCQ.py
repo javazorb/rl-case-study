@@ -7,6 +7,8 @@ import torch
 import torch.nn.functional as F
 import copy
 from PIL import Image
+from torch import nn
+
 import config
 from data import dataset
 from data.generate_environment import generate_environment
@@ -220,7 +222,7 @@ def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):
 
 
 class DiscreteBCQAgent:
-    def __init__(self, model, num_actions, threshold=0.3, gamma=0.99, lr=1e-4, device=config.get_device()):
+    def __init__(self, model, num_actions, threshold=0.05, gamma=0.99, lr=1e-4, device=config.get_device()):
         self.device = device
         self.model = model.to(device)
         self.target_model = copy.deepcopy(model).to(device)
@@ -229,6 +231,7 @@ class DiscreteBCQAgent:
         self.threshold = threshold
         self.gamma = gamma
         self.update_counter = 0
+        self.clip_grad_norm = 10.0
 
     def select_action(self, state):
         self.model.eval()
@@ -243,7 +246,7 @@ class DiscreteBCQAgent:
                 action = 3
         return action
 
-    def train(self, replay_buffer, batch_size=32):
+    def train_old(self, replay_buffer, batch_size=32):
         self.model.train()
         self.model.to(self.device)
 
@@ -308,4 +311,71 @@ class DiscreteBCQAgent:
             "reg_loss": reg_loss.item(),
             "total_loss": loss.item(),
         }
+
+    def train(self, replay_buffer, batch_size=32):
+        self.model.train()
+        self.model.to(self.device)
+
+        # ----- Sample replay buffer -----
+        states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
+
+        # ----- Compute target -----
+        with torch.no_grad():
+            # 1) compute Q and imitation probabilities from target net
+            q_next, imt_next, _ = self.target_model(next_states)
+
+            # 2) convert imitation logits → probabilities
+            imt_next = imt_next.exp()
+
+            # 3) apply BCQ threshold mask
+            #prob_ratio = imt_next / imt_next.max(1, keepdim=True)[0]
+            #mask = (prob_ratio > self.threshold).float()
+            prob_ratio = imt_next / (imt_next.max(dim=1, keepdim=True)[0] + 1e-12)
+            mask = (prob_ratio > self.threshold).float()
+
+            # 4) Mask out actions not likely under the behavior policy
+            masked_q = mask * q_next + (1 - mask) * -1e8
+
+            # 5) Select action under mask
+            next_actions = masked_q.argmax(1, keepdim=True)
+
+            # 6) Compute target Q using the unmasked target network
+            target_q_all, _, _ = self.target_model(next_states)
+            target_q = rewards + self.gamma * (1 - dones) * \
+                       target_q_all.gather(1, next_actions)
+
+        # ----- Compute current Q -----
+        q_values, imt, i_logits = self.model(states)
+        q_values = q_values.gather(1, actions.unsqueeze(1))
+
+        # ----- Loss -----
+        q_loss = F.smooth_l1_loss(q_values, target_q)
+        i_loss = F.nll_loss(imt, actions)
+        reg_loss = 1e-2 * i_logits.pow(2).mean()
+
+        loss = q_loss + i_loss + reg_loss
+
+        # Backprop
+        self.optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
+        self.optimizer.step()
+
+        # Soft update every 100 steps
+        self.update_counter += 1
+        if self.update_counter % 500 == 0:
+            self.target_model.load_state_dict(self.model.state_dict())
+
+        return {
+            "q_loss": q_loss.item(),
+            "i_loss": i_loss.item(),
+            "reg_loss": reg_loss.item(),
+            "total_loss": loss.item(),
+        }
+
 
