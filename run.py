@@ -83,7 +83,7 @@ def run():
     #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 
     model = bcq_model.BCQModel()
-    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.05)
+    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.3)
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)

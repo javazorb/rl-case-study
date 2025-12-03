@@ -60,6 +60,8 @@ def debug_forward(model, states):
 def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_size=32):
     EVAL_FREQUENCY = 10
     losses = []
+    initial_loss = np.inf
+    best_model = agent.model.copy()
     for epoch in range(num_epochs):
         for _ in range(steps_per_epoch):
             logs = agent.train(replay_buffer, batch_size)
@@ -73,7 +75,11 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             if not os.path.exists("eval_outputs"):
                 os.makedirs("eval_outputs")
             evaluate_and_save_gif(agent, eval_env, gif_path)
+        if(logs['total_loss'] < initial_loss):
+            initial_loss = logs['total_loss']
+            best_model = agent.model.copy()
     config.save_model(agent.model, name="final_BCQ")
+    config.save_model(best_model, name="final_BCQ_best")
     print("Training complete.")
     return np.array(losses)
 
