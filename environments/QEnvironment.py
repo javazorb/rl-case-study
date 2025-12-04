@@ -248,14 +248,14 @@ class QEnvironment:
         if action == 0:  # do nothing
             reward += 0.2
         elif action == 3 or action == 1: #jump
-            reward += 1
+            reward += 2
             y += 1
 
         floor_height = dataset.get_env_floor_height(self.environment)
         obstacle_start, obstacle_end = dataset.get_obst_positions(self.environment, floor_height)
         obstacle_height = dataset.get_obstacle_height(self.environment, obstacle_start)
         if x in range(obstacle_start, obstacle_end) and y > floor_height + 1:
-            reward += 2
+            reward += 5
         if y > floor_height + 1 and action != 3:  # Gravity
             y -= 1
         if y > config.ENV_SIZE - 1:
@@ -269,9 +269,9 @@ class QEnvironment:
             reward -= 10
 
         self.current_position = (x, y)
-        if self.current_position == self.goal_position or x == config.ENV_SIZE - 1:
+        if  x == config.ENV_SIZE - 1 or self.current_position == self.goal_position :
             done = True
-            reward += 10
+            reward += 15
 
         # Update state representation
         self.state.fill(0)

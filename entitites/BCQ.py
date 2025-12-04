@@ -238,6 +238,17 @@ class DiscreteBCQAgent:
         self.gamma = gamma
         self.update_counter = 0
         self.clip_grad_norm = 10.0
+        self.action_map = [0, 3]
+        self.action_to_index = {a: i for i, a in enumerate(self.action_map)}
+
+    def env_action_to_index(self, a_env):
+        """Map environment action value (0 or 3) -> model index (0 or 1)."""
+        if a_env not in self.action_to_index:
+            raise ValueError(f"Unknown env action: {a_env}")
+        return self.action_to_index[a_env]
+
+    def index_to_env_action(self, idx):
+        return self.action_map[int(idx)]
 
     def select_action(self, state):
         self.model.eval()
@@ -287,6 +298,7 @@ class DiscreteBCQAgent:
             q_next = threshold_mask * q_next + (1 - threshold_mask) * -1e8 #-1e8  # maskiere nicht-expert-Aktionen
             next_actions = q_next.argmax(1, keepdim=True)
             mask = (next_actions == 1)
+            action_indices = torch.LongTensor([self.env_action_to_index(a) for a in actions]).to(self.device)
             next_actions = torch.where(mask, torch.tensor(3, device=next_actions.device), next_actions)
             #target_q = rewards + self.gamma * (1 - dones) * self.target_model(next_states)[0].gather(1, next_actions)
             target_q = rewards + self.gamma * (1 - dones) * q_next.gather(1, next_actions)
@@ -294,10 +306,10 @@ class DiscreteBCQAgent:
         #debug_forward(self.model, states)
         # Current Q + Imitation
         q_values, imt, i_logits = self.model(states)
-        q_values = q_values.gather(1, actions.unsqueeze(1))
+        q_values = q_values.gather(1, action_indices.unsqueeze(1))
 
         q_loss = F.smooth_l1_loss(q_values, target_q)
-        i_loss = F.nll_loss(imt, actions.squeeze())
+        i_loss = F.cross_entropy(imt, action_indices.squeeze())
         reg_loss = 1e-2 * i_logits.pow(2).mean()
 
         loss = q_loss + i_loss + reg_loss
@@ -361,7 +373,7 @@ class DiscreteBCQAgent:
 
         # ----- Loss -----
         q_loss = F.smooth_l1_loss(q_values, target_q)
-        i_loss = F.nll_loss(imt, actions)
+        i_loss = F.cross_entropy(imt, actions)
         reg_loss = 1e-2 * i_logits.pow(2).mean()
 
         loss = q_loss + i_loss + reg_loss
