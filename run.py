@@ -22,6 +22,7 @@ import models.hyperparameter as hyperparameter
 from entitites.BCAgent import BCAgent
 from entitites.DQNAgent import DQNAgent
 from entitites.DQNAgent import warm_start_replay_buffer
+from experiments.base_performance import run_experiment_1
 from training.train_q import ReplayBuffer
 from entitites.BCQ import DiscreteBCQAgent, fill_buffer
 from entitites.BCQ import train_bcq
@@ -60,17 +61,17 @@ def run():
     #behavior_cloning = load_model('final_BC_state_dict', behavior_cloning)
     #acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
 
-
-    # train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001, weight_decay=1e-4), criterion=None)
+    #behavior_cloning = bc_model.BehavioralModel()
+    #train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001, weight_decay=1e-4), criterion=None)
     # behavior_cloning = load_model("final_BC_state_dict", behavior_cloning)
-    # acc, total_actions_predicted, num_counts_jump_right, expert_jump_right = train_bc_new.test_accuracy(behavior_cloning,
+    #acc, total_actions_predicted, num_counts_jump_right, expert_jump_right = train_bc_new.test_accuracy(behavior_cloning,
     #                                                                                 config.get_device(), test_set)
     #pred_array = np.array([p for batch in total_actions_predicted for p in batch])
     #jump_mask = (pred_array == config.Actions.JUMP_RIGHT.value)
     #jump_count = jump_mask.sum()
     #total_preds = pred_array.size
-    # print(f'accuracy: {acc}')
-    # print(f'jump count versus total predictions: {num_counts_jump_right} / {len(total_actions_predicted)}   Number of jump right of experts: {expert_jump_right}')
+ #   print(f'accuracy: {acc}')
+ #   print(f'jump count versus total predictions: {num_counts_jump_right} / {len(total_actions_predicted)}   Number of jump right of experts: {expert_jump_right}')
     q_net = q_model.QModel()
     #trained_q = load_model('final_Q_state_dict', q_agent)
     #buffer_len = train_q.warm_start_replay_buffer(ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE), DataLoader(train_set, **config.PARAMS), config.get_device())
@@ -83,13 +84,20 @@ def run():
     #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 
     model = bcq_model.BCQModel()
-    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.01)
+    agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
     buffer = fill_buffer(list(train_loader))
     #os.environ.setdefault("CUDA_LAUNCH_BLOCKING", "1")
-    train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
+    q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
+    bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001),
+                       criterion=nn.CrossEntropyLoss(), early_stopping=10)
+    agents = [bc_agent, q_agent, agent]
+    run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
+
+
+    #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
 
 def sets_generation():

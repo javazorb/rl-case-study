@@ -75,7 +75,7 @@ def train_bcq(agent, replay_buffer, num_epochs=100, steps_per_epoch=1000, batch_
             if not os.path.exists("eval_outputs"):
                 os.makedirs("eval_outputs")
             evaluate_and_save_gif(agent, eval_env, gif_path)
-        if(logs['total_loss'] < initial_loss):
+        if logs['total_loss'] < initial_loss and epoch > 0:
             initial_loss = logs['total_loss']
             best_model = copy.deepcopy(agent.model)
     config.save_model(agent.model, name="final_BCQ")
@@ -243,9 +243,10 @@ class DiscreteBCQAgent:
 
     def env_action_to_index(self, a_env):
         """Map environment action value (0 or 3) -> model index (0 or 1)."""
-        if a_env not in self.action_to_index:
-            raise ValueError(f"Unknown env action: {a_env}")
-        return self.action_to_index[a_env]
+        a_int = int(a_env.item()) if torch.is_tensor(a_env) else int(a_env)
+        if a_int not in self.action_to_index:
+            raise ValueError(f"Unknown env action: {a_int}")
+        return self.action_to_index[a_int]
 
     def index_to_env_action(self, idx):
         return self.action_map[int(idx)]
@@ -341,7 +342,7 @@ class DiscreteBCQAgent:
         rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
         next_states = torch.FloatTensor(next_states).to(self.device)
         dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
-
+        action_indices = torch.LongTensor([self.env_action_to_index(a) for a in actions]).to(self.device)
         # ----- Compute target -----
         with torch.no_grad():
             # 1) compute Q and imitation probabilities from target net
@@ -362,6 +363,7 @@ class DiscreteBCQAgent:
             # 5) Select action under mask
             next_actions = masked_q.argmax(1, keepdim=True)
 
+
             # 6) Compute target Q using the unmasked target network
             target_q_all, _, _ = self.target_model(next_states)
             target_q = rewards + self.gamma * (1 - dones) * \
@@ -373,10 +375,10 @@ class DiscreteBCQAgent:
 
         # ----- Loss -----
         q_loss = F.smooth_l1_loss(q_values, target_q)
-        i_loss = F.cross_entropy(imt, actions)
+        i_loss = F.cross_entropy(imt, action_indices.squeeze())
         reg_loss = 1e-2 * i_logits.pow(2).mean()
 
-        loss = q_loss + i_loss + reg_loss
+        loss = q_loss + 2 * i_loss + reg_loss
 
         # Backprop
         self.optimizer.zero_grad()
