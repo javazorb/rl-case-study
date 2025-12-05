@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 import config
 from data import dataset
@@ -20,30 +20,6 @@ from models.q_model import QModel
 import models
 
 
-def collect_all_windows_for_environment(env, actions, expert_path):
-    """
-    Collects ALL state windows (no sampling) for a single environment.
-    Returns:
-        states: [T, WINDOW_LEN, H, W]
-        labels: [T] (expert action at each timestep)
-    """
-
-    states = []
-    labels = []
-
-    T = len(expert_path)
-
-    for t in range(T - config.WINDOW_LEN):
-        x, y = expert_path[t]
-
-        # env must be wrapped in a batch dimension [1, H, W]
-        window = dataset.extract_env_windows(env[None, ...], [(x, y)], config.WINDOW_LEN)[0]
-
-        states.append(window)
-        labels.append(actions[x])  # expert action at this time
-
-    return np.stack(states), np.array(labels)
-
 def load_model(name, model):
     base_dir = os.path.dirname(os.path.abspath(__file__))  # experiments/
     project_root = os.path.abspath(os.path.join(base_dir, '..'))  # move to root
@@ -54,99 +30,149 @@ def load_model(name, model):
     return model
 
 
-def get_actions_bc(model, device, test_data):
+def predict_actions_window_model(model, device, env_np):
     """
-    Evaluate accuracy and action distribution on test set.
+    Predicts one action per column using sliding-window input.
+    Works for both BC and DQN.
     """
-    model.to(device)
     model.eval()
-    total_predicted = []
-    actions = test_data[1]
-    expert_path = dataset.reconstruct_path(test_data[0], test_data[1])
+    env_np = env_np[0].astype(np.float32)
 
-    test_data = EnvironmentDataset(test_data)
-    params = {'batch_size': 1, 'shuffle': True, 'num_workers': 0}
-    test_loader = DataLoader(test_data, batch_size=1)
-    with torch.no_grad():
-        for environments, _ in test_loader:
-            states, labels = collect_all_windows_for_environment(environments, actions, expert_path)
-            state_batch = torch.tensor(states, dtype=torch.float32, device=device).unsqueeze(1)
-            actions = model(state_batch)
-            print(actions.shape)
+    expert_actions = env_np[1]
+    actions = []
+    expert_path = dataset.reconstruct_path(env_np, expert_actions)
 
-            #states, labels = train_bc_new.collect_training_windows(environments, actions, expert_paths,
-            #                                                       num_samples=config.NUM_STEPS_ENV, force_jump=True)
-            #state_batch = torch.tensor(states, dtype=torch.float32, device=device).unsqueeze(1)
+    for (x, y) in expert_path:
+        window = dataset.extract_env_windows(
+            np.expand_dims(env_np, 0),
+            [(x, y)],
+            config.WINDOW_LEN
+        )[0]
 
-            #predicted_actions = model(state_batch)
-            #predicted_classes = torch.argmax(predicted_actions, dim=1)
+        # Fix accidental 60×61
+        if window.shape[1] == 61:
+            window = window[:, :60]
 
+        inp = torch.tensor(window, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(1)
+        logits = model(inp)
+        actions.append(int(logits.argmax().item()))
 
-            #total_predicted.extend(predicted_classes.tolist())
+    return np.array(actions) #TODO either return only actions or simulate Environment and return all states
 
-    return total_predicted
+def predict_actions_unified(model, device, env_np):
+    """
+    Predict predicted actions along the expert trajectory for BOTH:
+    - Window-based models (BC, BCQ trained on windows)
+    - Full-state models (DQN)
 
-def get_all_bc_actions_for_batch(model, device, val_loader, criterion):
-    model.to(device)
+    Automatically detects which input shape the model expects.
+    """
+
     model.eval()
-    val_loss = 0
 
-    with torch.no_grad():
-        for environments, actions in val_loader:
-            batch_loss = 0
-            expert_paths = [dataset.reconstruct_path(env.numpy(), env_actions.numpy()) for env, env_actions in
-                            zip(environments, actions)]
-            agent_start_positions = []
+    # env_np expected shape: (60, 60)
+    env = env_np[0]
 
-            for expert_path in expert_paths:
-                start_idx = np.random.randint(config.ENV_SIZE - config.NUM_STEPS_ENV)
-                agent_start_positions.append(expert_path[0])
+    # --------- Detect Model Type (DQN vs BC-windows) ----------
+    # Inspect first conv layer
+    first_weight = next(model.parameters())
+    expects_window = (first_weight.shape[-1] == config.WINDOW_LEN)
+    # True  → BC/BCQ window model
+    # False → DQN full-env model
 
-            for step_idx in range(config.NUM_STEPS_ENV): # TODO do that for all windows, after the first 5 set start position plus 5 and repeat until you get 60 actions
-                state_batch = dataset.extract_env_windows(environments, agent_start_positions, config.WINDOW_LEN)
-                #state_batch = [arr[:, :-1] for arr in state_batch]
-                state_batch = np.asarray(state_batch, dtype=np.int64)
-                state_batch = torch.from_numpy(state_batch).float().to(device)
-                state_batch = state_batch.unsqueeze(1)  # Ensure the correct shape [batch_size, 1, 60, 5]
+    # --------- Reconstruct expert path ----------
+    # env_np passed in may include (env, expert_actions) in a tuple form
+    if isinstance(env_np, tuple) or isinstance(env_np, list):
+        env_img = env_np[0]
+        env_actions = env_np[1]
+    else:
+        raise ValueError("env_np must be (env, expert_actions)")
 
-                predicted_actions = model(state_batch.to(device))
-                predicted_actions = torch.argmax(predicted_actions, dim=1).cpu().numpy()
+    expert_path = dataset.reconstruct_path(env_img, env_actions)
 
+    predicted_actions = []
 
-    return val_loss
+    # --------- BC / BCQ WINDOW-BASED MODEL ---------- # TODO delete or rework
+    if expects_window:
+        for (x, y) in expert_path:
+            window = dataset.extract_env_windows(
+                np.expand_dims(env_img, 0),
+                [(x, y)],
+                config.WINDOW_LEN
+            )[0]  # shape 60×W
 
+            # Fix accidental 60×61
+            if window.shape[1] == config.ENV_SIZE + 1:
+                window = window[:, :config.ENV_SIZE]
+
+            inp = torch.tensor(window, dtype=torch.float32, device=device)
+            inp = inp.unsqueeze(0).unsqueeze(1)  # → (1, 1, 60, 5)
+
+            logits = model(inp)
+            action = int(logits.argmax().item())
+            predicted_actions.append(action)
+
+        return np.array(predicted_actions)
+
+    # --------- DQN FULL-STATE MODEL ----------
+    else:
+        # Build a temporary QEnvironment for stepping
+        start_pos = expert_path[0]
+        curr_env = QEnvironment(
+            environment=env_img,
+            size=config.ENV_SIZE,
+            start_pos=start_pos
+        )
+        curr_env.reset()
+
+        for (x, y) in expert_path:
+            state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
+            q_values = model(state_tensor)
+            action = int(q_values.argmax().item())
+
+            predicted_actions.append(action)
+
+            next_state, reward, done = curr_env.step(action)
+            if done:
+                break
+
+        return np.array(predicted_actions) #TODO add successes, rewards, lengths, trajectories
 
 
 def evaluate(envs, model):
     successes, rewards, lengths, trajectories = [], [], [], []
-    model.to(config.get_device())
+    device = config.get_device()
+    model.to(device)
+
     model.eval()
-    if isinstance(model, BehavioralModel):
-        actions_bc = get_actions_bc(model, config.get_device(), envs[0])
-    for env in envs[0]:
-        env = QEnvironment(size=config.ENV_SIZE, environment=env,
-                                start_pos=None)
-        obs = env.reset()
-        done = False
-        total_reward = 0
-        length = 0
-        traj = [env.current_position]
-        while not done:
-            if isinstance(model, BehavioralModel):
-                pass
-            else:
-                state_batch = torch.tensor(obs, dtype=torch.float32, device=config.get_device()).unsqueeze(1)
-                logits = model(state_batch)
-                action = logits.argmax().item()
-            obs, reward, done = env.step(action)
-            total_reward += reward
-            length += 1
-            traj.append(env.agent_pos)
-        successes.append(env.agent_pos[1] >= config.env_size - 1)
-        rewards.append(total_reward)
-        lengths.append(length)
-        trajectories.append(traj)
-    return successes, rewards, lengths, trajectories
+    actions = None
+    for env in envs:
+        if isinstance(model, BehavioralModel):
+            actions = predict_actions_window_model(model, device, env)
+        elif isinstance(model, QModel):
+            actions = predict_actions_unified(model, device, env)
+    return actions, rewards, lengths, trajectories
+    #    obs = env.reset()
+    #    done = False
+    #    total_reward = 0
+    #    length = 0
+    #    traj = [env.current_position]
+    #    while not done:
+    #        if isinstance(model, BehavioralModel):
+    #            pass
+    #        else:
+    #            state_batch = torch.tensor(obs, dtype=torch.float32, device=config.get_device()).unsqueeze(1)
+    #            logits = model(state_batch)
+    #            action = logits.argmax().item()
+    #        obs, reward, done = env.step(action)
+    #        total_reward += reward
+    #        length += 1
+    #        traj.append(env.agent_pos)
+    #    successes.append(env.agent_pos[1] >= config.env_size - 1)
+    #    rewards.append(total_reward)
+    #    lengths.append(length)
+    #    trajectories.append(traj)
+    #return successes, rewards, lengths, trajectories
 
 def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True):
     """
@@ -170,8 +196,9 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         bcq_agent.model = load_model("final_BCQ_state_dict", BCQModel())
 
     # Evaluate
-    print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
+    #print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
+    small_test_data = Subset(test_data, list(range(10)))
     for name, model in zip(["BC", "DQN", "BCQ"], [bc_agent.model, dqn_agent.model, bcq_agent.model]):
-        successes, rewards, lengths, trajectories = evaluate(test_data, model)
-        print(
-            f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
+        successes, rewards, lengths, trajectories = evaluate(small_test_data, model)
+        #print(
+        #    f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
