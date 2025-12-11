@@ -137,7 +137,7 @@ def predict_actions_unified(model, device, env_np):
             if done:
                 break
 
-        return np.array(predicted_actions) #TODO add successes, rewards, lengths, trajectories
+        return np.array(predicted_actions)
 
 
 def evaluate(envs, model):
