@@ -18,6 +18,7 @@ from models.bc_model import BehavioralModel
 from models.bcq_model import BCQModel
 from models.q_model import QModel
 import models
+import matplotlib.pyplot as plt
 
 
 def load_model(name, model):
@@ -181,6 +182,35 @@ def evaluate(envs, model):
     #    lengths.append(length)
     #    trajectories.append(traj)
     return successes, rewards, lengths, trajectories
+
+
+def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, envs, threshold, save_dir):
+    for i, env in enumerate(envs):
+        expert_path = dataset.reconstruct_path(env[0], env[1])
+
+        bc_path  = evaluate(env[0], bc_model)
+        dqn_path = evaluate(env[0], dqn_model)
+        bcq_path = evaluate(env[0], bcq_model)
+
+        # 3-panel plot
+        fig, axs = plt.subplots(1, 3, figsize=(16, 6))
+        panels = [
+            ("BC", bc_path[3][0]), # TODO debug because with evaluate above i get list of list of trajectories length 1
+            ("DQN", dqn_path[3][0]),
+            ("BCQ", bcq_path[3][0]),
+        ]
+
+        for ax, (name, path) in zip(axs, panels):
+            ax.imshow(env, cmap="gray")
+            ax.plot([x for _, x in expert_path], [y for y, _ in expert_path], "-g", label="Expert")
+            ax.plot([x for _, x in path],       [y for y, _ in path],       "-r", label=name)
+            ax.set_title(name)
+            ax.legend()
+
+        plt.savefig(f"{save_dir}/compare_bc_dqn_bcq_env_{i}.png", dpi=200, bbox_inches='tight')
+        plt.close()
+
+
 
 def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True):
     """
