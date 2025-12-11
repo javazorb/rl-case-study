@@ -33,7 +33,7 @@ def load_model(name, model):
 def predict_actions_window_model(model, device, env_np):
     """
     Predicts one action per column using sliding-window input.
-    Works for both BC and DQN.
+    Works for both BC
     """
     model.eval()
     env_np = env_np[0].astype(np.float32)
@@ -57,7 +57,7 @@ def predict_actions_window_model(model, device, env_np):
         logits = model(inp)
         actions.append(int(logits.argmax().item()))
 
-    return np.array(actions) #TODO either return only actions or simulate Environment and return all states
+    return np.array(actions)
 
 def predict_actions_unified(model, device, env_np):
     """
@@ -92,7 +92,7 @@ def predict_actions_unified(model, device, env_np):
 
     predicted_actions = []
 
-    # --------- BC / BCQ WINDOW-BASED MODEL ---------- # TODO delete or rework
+    # --------- BC / BCQ WINDOW-BASED MODEL ---------- # TODO delete or rework and check for BCQ
     if expects_window:
         for (x, y) in expert_path:
             window = dataset.extract_env_windows(
@@ -151,12 +151,20 @@ def evaluate(envs, model):
             actions = predict_actions_window_model(model, device, env)
         elif isinstance(model, QModel):
             actions = predict_actions_unified(model, device, env)
-    return actions, rewards, lengths, trajectories
-    #    obs = env.reset()
-    #    done = False
-    #    total_reward = 0
-    #    length = 0
-    #    traj = [env.current_position]
+        obs = env.reset()
+        done = False
+        total_reward = 0
+        length = 0
+        traj = [env.current_position]
+        for action in actions:
+            obs, reward, done, _ = env.step(action)
+            total_reward += reward
+            length += 1
+            traj.append(env.current_position)
+        rewards.append(total_reward)
+        lengths.append(length)
+        trajectories.append(traj)
+        successes.append(env.agent_pos[0] >= config.ENV_SIZE - 1)
     #    while not done:
     #        if isinstance(model, BehavioralModel):
     #            pass
@@ -172,7 +180,7 @@ def evaluate(envs, model):
     #    rewards.append(total_reward)
     #    lengths.append(length)
     #    trajectories.append(traj)
-    #return successes, rewards, lengths, trajectories
+    return successes, rewards, lengths, trajectories
 
 def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True):
     """
@@ -200,5 +208,5 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     small_test_data = Subset(test_data, list(range(10)))
     for name, model in zip(["BC", "DQN", "BCQ"], [bc_agent.model, dqn_agent.model, bcq_agent.model]):
         successes, rewards, lengths, trajectories = evaluate(small_test_data, model)
-        #print(
-        #    f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
+        print(
+            f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
