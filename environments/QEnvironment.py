@@ -269,7 +269,8 @@ class QEnvironment:
             reward -= 10
 
         self.current_position = (x, y)
-        if  x == config.ENV_SIZE - 1 or self.current_position == self.goal_position :
+        if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
+                or self.current_position[0] == config.ENV_SIZE - 1):
             done = True
             reward += 15
 

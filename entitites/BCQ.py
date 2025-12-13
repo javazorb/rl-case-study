@@ -260,8 +260,9 @@ class DiscreteBCQAgent:
             imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
             final_q = imt * q + (1 - imt) * -1e8
             action = final_q.argmax(1).item()
-            if action == 1:
-                action = 3
+            action = self.index_to_env_action(action)
+            #if action == 1:
+            #    action = 3
         return action
 
     def train_old(self, replay_buffer, batch_size=32):
@@ -371,8 +372,8 @@ class DiscreteBCQAgent:
 
         # ----- Compute current Q -----
         q_values, imt, i_logits = self.model(states)
-        q_values = q_values.gather(1, actions.unsqueeze(1))
-
+        #q_values = q_values.gather(1, actions.unsqueeze(1))
+        q_values = q_values.gather(1, action_indices.unsqueeze(1))
         # ----- Loss -----
         q_loss = F.smooth_l1_loss(q_values, target_q)
         i_loss = F.cross_entropy(imt, action_indices.squeeze())

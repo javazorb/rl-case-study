@@ -147,25 +147,35 @@ def evaluate(envs, model):
 
     model.eval()
     actions = None
-    for env in envs:
+    for env, env_actions in envs:
         if isinstance(model, BehavioralModel):
-            actions = predict_actions_window_model(model, device, env)
+            actions = predict_actions_window_model(model, device, (env, env_actions))
         elif isinstance(model, QModel):
-            actions = predict_actions_unified(model, device, env)
-        obs = env.reset()
+            actions = predict_actions_unified(model, device, (env, env_actions))
+        else:
+            actions = predict_actions_unified(model, device, (env, env_actions))
+        expert_path = dataset.reconstruct_path(env, env_actions)
+        curr_env = QEnvironment(
+            environment=env,
+            size=config.ENV_SIZE,
+            start_pos=expert_path[0]
+        )
+        obs = curr_env.reset()
         done = False
         total_reward = 0
         length = 0
-        traj = [env.current_position]
+        traj = [curr_env.current_position]
         for action in actions:
-            obs, reward, done, _ = env.step(action)
+            obs, reward, done = curr_env.step(action)
             total_reward += reward
             length += 1
-            traj.append(env.current_position)
+            traj.append(curr_env.current_position)
+            if done:
+                break
         rewards.append(total_reward)
         lengths.append(length)
         trajectories.append(traj)
-        successes.append(env.agent_pos[0] >= config.ENV_SIZE - 1)
+        successes.append(curr_env.current_position[0] >= config.ENV_SIZE - 1)
     #    while not done:
     #        if isinstance(model, BehavioralModel):
     #            pass
@@ -238,5 +248,5 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     small_test_data = Subset(test_data, list(range(10)))
     for name, model in zip(["BC", "DQN", "BCQ"], [bc_agent.model, dqn_agent.model, bcq_agent.model]):
         successes, rewards, lengths, trajectories = evaluate(small_test_data, model)
-        print(
-            f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
+        #print(
+        #    f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
