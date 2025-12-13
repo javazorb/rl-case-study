@@ -140,6 +140,26 @@ def predict_actions_unified(model, device, env_np):
         return np.array(predicted_actions)
 
 
+def predict_actions_bcq(model, device, env, env_actions):
+    expert_path = dataset.reconstruct_path(env, env_actions)
+    agent = bcq.DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
+    curr_env = QEnvironment(
+        environment=env,
+        size=config.ENV_SIZE,
+        start_pos=expert_path[0]
+    )
+    agent.model.eval()
+    model.eval()
+    actions = []
+    with torch.no_grad():
+        for _ in range(config.MAX_STEPS):
+            action = agent.select_action(curr_env.state)
+            obs, reward, done = curr_env.step(action)
+            actions.append(action)
+            if done:
+                break
+    return np.array(actions)
+
 def evaluate(envs, model):
     successes, rewards, lengths, trajectories = [], [], [], []
     device = config.get_device()
@@ -153,7 +173,7 @@ def evaluate(envs, model):
         elif isinstance(model, QModel):
             actions = predict_actions_unified(model, device, (env, env_actions))
         else:
-            actions = predict_actions_unified(model, device, (env, env_actions))
+            actions = predict_actions_bcq(model, device, env, env_actions)
         expert_path = dataset.reconstruct_path(env, env_actions)
         curr_env = QEnvironment(
             environment=env,
@@ -248,5 +268,5 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     small_test_data = Subset(test_data, list(range(10)))
     for name, model in zip(["BC", "DQN", "BCQ"], [bc_agent.model, dqn_agent.model, bcq_agent.model]):
         successes, rewards, lengths, trajectories = evaluate(small_test_data, model)
-        #print(
-        #    f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
+        print(
+            f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
