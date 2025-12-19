@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 
 import numpy as np
 import torch
@@ -17,6 +18,7 @@ from environments.QEnvironment import QEnvironment
 from models.bc_model import BehavioralModel
 from models.bcq_model import BCQModel
 from models.q_model import QModel
+from models.base_model import BaseModel
 import models
 import matplotlib.pyplot as plt
 
@@ -47,7 +49,7 @@ def predict_actions_window_model(model, device, env_np):
         window = dataset.extract_env_windows(
             np.expand_dims(env_np, 0),
             [(x, y)],
-            config.WINDOW_LEN
+            9#config.WINDOW_LEN
         )[0]
 
         # Fix accidental 60×61
@@ -167,13 +169,15 @@ def evaluate(envs, model):
 
     model.eval()
     actions = None
+    all_actions = []
     for env, env_actions in envs:
-        if isinstance(model, BehavioralModel):
+        if isinstance(model, BaseModel):
             actions = predict_actions_window_model(model, device, (env, env_actions))
         elif isinstance(model, QModel):
             actions = predict_actions_unified(model, device, (env, env_actions))
         else:
             actions = predict_actions_bcq(model, device, env, env_actions)
+        all_actions.append(actions)
         expert_path = dataset.reconstruct_path(env, env_actions)
         curr_env = QEnvironment(
             environment=env,
@@ -211,7 +215,7 @@ def evaluate(envs, model):
     #    rewards.append(total_reward)
     #    lengths.append(length)
     #    trajectories.append(traj)
-    return successes, rewards, lengths, trajectories
+    return successes, rewards, lengths, trajectories, Counter(np.concatenate(all_actions))
 
 
 def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, envs, threshold, save_dir):
@@ -259,7 +263,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         dqn_loss, q_values, action_counts = dqn_agent.train(train_data, val_data) # also average train loss
         bcq_losses = bcq.train_bcq(bcq_agent, buffer) # losses dict shape
     else:
-        bc_agent.model = load_model("final_BC_state_dict", BehavioralModel())
+        bc_agent.model = load_model("final_BC_state_dict", BaseModel())
         dqn_agent.model = load_model("final_Q_state_dict", QModel())
         bcq_agent.model = load_model("final_BCQ_state_dict", BCQModel())
 
@@ -267,6 +271,6 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     #print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
     #small_test_data = Subset(test_data, list(range(10)))
     for name, model in zip(["BC", "DQN", "BCQ"], [bc_agent.model, dqn_agent.model, bcq_agent.model]):
-        successes, rewards, lengths, trajectories = evaluate(test_data, model)
+        successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model)
         print(
-            f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}")
+            f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}, Action Counts: {action_dist}")

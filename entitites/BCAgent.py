@@ -4,6 +4,7 @@ from tqdm import tqdm
 import numpy as np
 from entitites.BaseAgent import BaseAgent
 from models.bc_model import BehavioralModel
+from models.base_model import BaseModel
 import config
 import copy
 import data.dataset as dataset
@@ -12,7 +13,7 @@ class BCAgent(BaseAgent):
     def __init__(self, optimizer, criterion, early_stopping=10):
         #super().__init__(optimizer, criterion)
         self.device = config.get_device()
-        self.model = BehavioralModel().to(self.device)
+        self.model = BaseModel().to(self.device)
         self.optimizer = optimizer
         self.criterion = criterion
         self.early_stopping = early_stopping
