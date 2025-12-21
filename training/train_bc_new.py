@@ -311,7 +311,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
 
     # Jump oversampling params
     jump_boost = 5.0      # start with minimal boost
-    target_jump_acc = 0.5  # desired jump accuracy
+    target_jump_acc = 0.9  # desired jump accuracy
     jump_margin = 0.05     # tolerance
     max_jump_fraction = 0.7  # max fraction of batch that can be jump windows
 
