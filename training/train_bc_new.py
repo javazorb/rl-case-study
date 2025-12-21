@@ -310,7 +310,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
         criterion = torch.nn.CrossEntropyLoss()
 
     # Jump oversampling params
-    jump_boost = 3.0      # start with minimal boost
+    jump_boost = 5.0      # start with minimal boost
     target_jump_acc = 0.5  # desired jump accuracy
     jump_margin = 0.05     # tolerance
     max_jump_fraction = 0.7  # max fraction of batch that can be jump windows
@@ -380,7 +380,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
 
         # Smooth dynamic jump_boost adjustment
         if j_acc < target_jump_acc:
-            jump_boost = min(jump_boost * 1.5, 10)  # gentle increase, upper cap
+            jump_boost = min(jump_boost * 2, 10)  # gentle increase, upper cap
         elif j_acc > target_jump_acc + jump_margin:
             jump_boost = max(jump_boost * 0.8, 1)  # gentle decrease, lower cap
 
