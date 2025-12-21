@@ -90,6 +90,8 @@ def run():
     train_loader = DataLoader(train_set, **config.PARAMS)
     val_loader = DataLoader(val_set, **config.PARAMS)
     buffer = fill_buffer(list(train_loader))
+    #train_bc_new.train_bc_from_buffer(behavior_cloning, buffer, config.get_device())
+    #train_bc_new.evaluate_bc_jump_metrics(behavior_cloning, test_set, config.get_device())
     #os.environ.setdefault("CUDA_LAUNCH_BLOCKING", "1")
     q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
     bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001),
