@@ -380,7 +380,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
 
         # Smooth dynamic jump_boost adjustment
         if j_acc < target_jump_acc:
-            jump_boost = min(jump_boost * 2, 20)  # gentle increase, upper cap
+            jump_boost = min(jump_boost * 2, 1000)  # gentle increase, upper cap
         elif j_acc > target_jump_acc + jump_margin:
             jump_boost = max(jump_boost * 0.8, 1)  # gentle decrease, lower cap
 
