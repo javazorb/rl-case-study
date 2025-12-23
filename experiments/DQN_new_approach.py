@@ -52,6 +52,7 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
     target_net.eval()
     eval_every = 5000
     optimizer = optim.Adam(q_net.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10000, gamma=0.9)
     buffer = ReplayBuffer(capacity)
     alpha = 100
     epsilon_start, epsilon_final, epsilon_decay = 1.0, 0.01, 50000
@@ -81,18 +82,21 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
         with torch.no_grad():
             next_q = target_net(next_states).max(1)[0]
             q_target = rewards + gamma * next_q * (1 - dones)
+            q_target = torch.clamp(q_target, min=-20.0, max=200.0)
 
         loss = F.mse_loss(q_values, q_target)
 
         optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(q_net.parameters(), max_norm=10.0)
         optimizer.step()
+        scheduler.step()
 
         if step % update_target == 0:
             target_net.load_state_dict(q_net.state_dict())
 
         if step % 1000 == 0:
-            print(f"[OFFLINE] step {step} | loss {loss.item():.4f}")
+            print(f"[OFFLINE] step {step} | loss {loss.item():.4f} | lr {scheduler.get_last_lr()[0]:.6f}")
         if val_envs is not None and step % eval_every == 0:
             mean_return, success_rate = evaluate_offline_policy(q_net, val_envs, device)
             print(f"[EVAL] step {step} | Return: {mean_return:.2f} | Success: {success_rate:.2%}")
