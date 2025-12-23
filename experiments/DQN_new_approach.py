@@ -58,7 +58,9 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
     steps_done = 0
     warm_start_replay_buffer(buffer, train_envs, None)
     best_model = copy.deepcopy(q_net)
+    best_model_success_rate = copy.deepcopy(q_net)
     best_score = -float('inf')
+    best_success_rate = -float('inf')
     q_net.train()
     target_net.eval()
     #torch.backends.cudnn.enabled = False
@@ -98,8 +100,13 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
             if score > best_score:
                 best_score = score
                 best_model = copy.deepcopy(q_net)
-                print(f"🔹 New best model saved | score: {best_score:.2f}")
+                print(f"🔹 New best reward model saved | score: {best_score:.2f}")
+            if success_rate > best_success_rate:
+                best_success_rate = success_rate
+                best_model_success_rate = copy.deepcopy(q_net)
+                print(f"🔹 New best success rate model saved | success rate: {success_rate:.2f}")
     config.save_model(best_model, name="final_DQN")
+    config.save_model(best_model_success_rate, name="final_DQN_best_success_rate")
 
 
 def evaluate_offline_policy(q_net, eval_envs, device):
