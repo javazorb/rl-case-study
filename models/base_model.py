@@ -18,7 +18,7 @@ class BaseModel(nn.Module):
         )
 
         with torch.no_grad():
-            dummy = torch.zeros(1, 1, 60, 9)
+            dummy = torch.zeros(1, *input_shape)#torch.zeros(1, 1, 60, 9)
             n_flat = self.conv(dummy).view(1, -1).size(1)
 
         print(f"n_flat feature dim: {n_flat}")
