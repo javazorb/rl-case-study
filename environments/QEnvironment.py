@@ -277,6 +277,7 @@ class QEnvironment:
             success = True
             reward += 15
 
+        self.state[0, self.current_position[1], self.current_position[0]] = config.AGENT
         # Update state representation
         #self.state.fill(0)
         #self.state[0, floor_height, :] = self.environment[floor_height, :]
