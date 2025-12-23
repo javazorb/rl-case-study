@@ -34,6 +34,7 @@ class QEnvironment:
 
     def reset(self):
         self.state.fill(0)
+        self.state[0] = self.environment.copy()
         floor_height = dataset.get_env_floor_height(self.environment)
         if floor_height is None:
             floor_height = self.start_position[1]
@@ -46,10 +47,10 @@ class QEnvironment:
         self.jump_count = 0
         self.stuck_cnt = 0
 
-        self.state[0, :, floor_height] = self.environment[:, floor_height]
-        self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # Mark goal
-        self.state[0, self.start_position[0], self.start_position[1]] = 1  # Mark start
-        self.state[0, self.current_position[0], self.current_position[1]] = 3  # Agent marker
+        #self.state[0, :, floor_height] = self.environment[:, floor_height]
+        self.state[0, self.goal_position[1], self.goal_position[0]] = 200 # Mark goal
+        self.state[0, self.start_position[1], self.start_position[0]] = 50  # Mark start
+        self.state[0, self.current_position[1], self.current_position[0]] = config.AGENT  # Agent marker
         return self.state
 
     def step_og(self, action):
@@ -275,10 +276,10 @@ class QEnvironment:
             reward += 15
 
         # Update state representation
-        self.state.fill(0)
-        self.state[0, floor_height, :] = self.environment[floor_height, :]
-        self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # goal
-        self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
+        #self.state.fill(0)
+        #self.state[0, floor_height, :] = self.environment[floor_height, :]
+        #self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # goal
+        #self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
         if 0 <= self.current_position[0] < config.ENV_SIZE and 0 <= self.current_position[1] < config.ENV_SIZE:
             self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent # maybe check for index out of bounds
         return self.state, reward, done
