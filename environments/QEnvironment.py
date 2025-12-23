@@ -239,6 +239,7 @@ class QEnvironment:
         return self.state, reward, self.done
 
     def step(self, action):
+        success = False
         reward = 0
         done = False
         x,y = self.current_position
@@ -273,6 +274,7 @@ class QEnvironment:
         if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
                 or self.current_position[0] == config.ENV_SIZE - 1):
             done = True
+            success = True
             reward += 15
 
         # Update state representation
@@ -280,9 +282,9 @@ class QEnvironment:
         #self.state[0, floor_height, :] = self.environment[floor_height, :]
         #self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # goal
         #self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
-        if 0 <= self.current_position[0] < config.ENV_SIZE and 0 <= self.current_position[1] < config.ENV_SIZE:
-            self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent # maybe check for index out of bounds
-        return self.state, reward, done
+        #if 0 <= self.current_position[0] < config.ENV_SIZE and 0 <= self.current_position[1] < config.ENV_SIZE:
+        #    self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent # maybe check for index out of bounds
+        return self.state, reward, done, success
 
     def render(self, mode="rgb_array"):
         eval_env = self.environment.copy()
