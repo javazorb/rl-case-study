@@ -109,7 +109,7 @@ def fill_buffer(data_loader, oversample_factor=config.OVERSAMPLE_FACTOR):
 
             state = curr_env.state.copy()
             for action in env_actions:
-                next_state, reward, done = curr_env.step(action)
+                next_state, reward, done, _ = curr_env.step(action)
                 buffer.push(state, action, reward, next_state, done)
                 state = next_state.copy()
 
