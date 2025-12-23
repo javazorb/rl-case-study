@@ -46,8 +46,8 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
     #obs_dim = train_envs[0].observation_space.shape[0]
     #n_actions = train_envs[0].action_space.n
 
-    q_net = BaseModel(input_shape=(1, 60, 60)).to(device)
-    target_net = BaseModel(input_shape=(1, 60, 60)).to(device)
+    q_net = BaseModel(num_actions=len(config.QActions), input_shape=(1, 60, 60)).to(device)
+    target_net = BaseModel(num_actions=len(config.QActions), input_shape=(1, 60, 60)).to(device)
     target_net.load_state_dict(q_net.state_dict())
     target_net.eval()
     eval_every = 5000
@@ -61,6 +61,7 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
     best_score = -float('inf')
     q_net.train()
     target_net.eval()
+    #torch.backends.cudnn.enabled = False
 
     for step in range(steps):
 
@@ -71,7 +72,7 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
         actions = actions.to(device)
         rewards = rewards.to(device)
         dones = dones.to(device)
-
+        actions = torch.where(actions == 3, torch.tensor(1, device=actions.device), actions)
         # Q(s,a)
         q_values = q_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
@@ -113,10 +114,10 @@ def evaluate_offline_policy(q_net, eval_envs, device):
 
         while not done:
             with torch.no_grad():
-                action = q_net(
+                action_idx = q_net(
                     torch.FloatTensor(state).unsqueeze(0).to(device)
                 ).argmax(1).item()
-
+            action = 0 if action_idx == 0 else 3
             state, reward, done, success = env.step(action)
             ep_return += reward
 
