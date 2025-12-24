@@ -249,8 +249,10 @@ class QEnvironment:
 
         if action == 0:  # do nothing
             reward += 0.2
+            self.jump_count -= 1 if self.jump_count > 0 else 0
         elif action == 3 or action == 1: #jump
             reward += 2
+            self.jump_count += 1
             y += 1
 
         floor_height = dataset.get_env_floor_height(self.environment)
@@ -269,6 +271,8 @@ class QEnvironment:
         if x in range(obstacle_start, obstacle_end) and y < obstacle_height + floor_height + 1: # Failed agent in obstacle
             done = True
             reward -= 10
+        if self.jump_count > 15:
+            reward -= 5
 
         self.current_position = (x, y)
         if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
