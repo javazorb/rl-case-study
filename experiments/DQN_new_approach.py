@@ -57,7 +57,10 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
     alpha = 100
     epsilon_start, epsilon_final, epsilon_decay = 1.0, 0.01, 50000
     steps_done = 0
-    warm_start_replay_buffer(buffer, train_envs, None)
+    warm_start_replay_buffer(buffer, train_envs, jump_boost=3)
+
+    #warm_start_replay_buffer(buffer, val_envs)
+    print(f"[WARM START] Filled {len(buffer)} transitions")
     best_model = copy.deepcopy(q_net)
     best_model_success_rate = copy.deepcopy(q_net)
     best_score = -float('inf')
@@ -110,7 +113,8 @@ def train_dqn(train_envs, val_envs=None, steps=100000, batch_size=64,
                 best_model_success_rate = copy.deepcopy(q_net)
                 print(f"🔹 New best success rate model saved | success rate: {success_rate:.2f}")
     config.save_model(best_model, name="final_DQN")
-    config.save_model(best_model_success_rate, name="final_DQN_best_success_rate")
+    if best_success_rate > 0:
+         config.save_model(best_model_success_rate, name=f"final_DQN_best_success_rate_{best_success_rate:.2f}")
 
 
 def evaluate_offline_policy(q_net, eval_envs, device):
@@ -133,7 +137,7 @@ def evaluate_offline_policy(q_net, eval_envs, device):
             ep_return += reward
 
         returns.append(ep_return)
-        successes.append(success)
+        successes.append(done and env.current_position[0] == env.goal_position[0])
 
     mean_return = np.mean(returns)
     success_rate = np.mean(successes)  # fraction of successful episodes
@@ -143,7 +147,7 @@ def evaluate_offline_policy(q_net, eval_envs, device):
 def warm_start_replay_buffer(
     replay_buffer,
     environments_data,
-    max_transitions=None
+    jump_boost=1
 ):
     """
     expert_trajectories: list of trajectories
@@ -155,14 +159,14 @@ def warm_start_replay_buffer(
         state = env.reset()
         done = False
         total_reward = 0
-        for action in actions:
+        for i, action in enumerate(actions):
             next_state, reward, done, _ = env.step(action)
             replay_buffer.push(state, action, reward, next_state, done)
+            if actions[i] == 3:
+                for _ in range(jump_boost):
+                    replay_buffer.push(state, action, reward, next_state, done)
             state = next_state
             count += 1
-            if max_transitions and count >= max_transitions:
-                print(f"[WARM START] Filled {count} transitions")
-                return
     print(f"[WARM START] Filled {count} transitions")
 
 
