@@ -210,7 +210,7 @@ def evaluate_and_save_gif(agent, env, gif_path, max_steps=config.MAX_STEPS):
         frame = env.render(mode='rgb_array')
         #frames.append(Image.fromarray(frame))
         action = agent.select_action(state)
-        next_state, reward, done = env.step(action)
+        next_state, reward, done, _ = env.step(action)
         state = next_state
         total_reward += reward
         if done:
