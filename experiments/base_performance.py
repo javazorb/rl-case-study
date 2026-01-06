@@ -135,7 +135,7 @@ def predict_actions_unified(model, device, env_np):
 
             predicted_actions.append(action)
 
-            next_state, reward, done = curr_env.step(action)
+            next_state, reward, done, _ = curr_env.step(action)
             if done:
                 break
 
@@ -156,7 +156,7 @@ def predict_actions_bcq(model, device, env, env_actions):
     with torch.no_grad():
         for _ in range(config.MAX_STEPS):
             action = agent.select_action(curr_env.state)
-            obs, reward, done = curr_env.step(action)
+            obs, reward, done, _ = curr_env.step(action)
             actions.append(action)
             if done:
                 break
@@ -190,7 +190,7 @@ def evaluate(envs, model):
         length = 0
         traj = [curr_env.current_position]
         for action in actions:
-            obs, reward, done = curr_env.step(action)
+            obs, reward, done, _ = curr_env.step(action)
             total_reward += reward
             length += 1
             traj.append(curr_env.current_position)
@@ -264,7 +264,8 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         bcq_losses = bcq.train_bcq(bcq_agent, buffer) # losses dict shape
     else:
         bc_agent.model = load_model("final_BC_state_dict", BaseModel())
-        dqn_agent.model = load_model("final_Q_state_dict", QModel())
+        dqn_model = QModel(num_actions=len(config.QActions), input_shape=(1, 60, 60))
+        dqn_agent.model = load_model("final_DQN_state_dict", dqn_model)
         bcq_agent.model = load_model("final_BCQ_state_dict", BCQModel())
 
     # Evaluate

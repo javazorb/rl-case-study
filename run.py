@@ -62,21 +62,21 @@ def run():
     #                optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
     #behavior_cloning = load_model('final_BC_state_dict', behavior_cloning)
     #acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
-    train_dqn(train_set, val_set, steps=100000, batch_size=64,
-              gamma=0.99, lr=1e-4, capacity=100000, update_target=10000)
-    behavior_cloning = base_model.BaseModel()
-    train_bc_new.train_only_jump(behavior_cloning, config.get_device(), train_set, val_set,
-                                 optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4),
-                                 criterion=None, early_stopping=3)
-    train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4), criterion=None)
+    #train_dqn(train_set, val_set, steps=100000, batch_size=64, # TODO current used version
+    #          gamma=0.99, lr=1e-4, capacity=100000, update_target=10000)
+    #behavior_cloning = base_model.BaseModel()
+    #train_bc_new.train_only_jump(behavior_cloning, config.get_device(), train_set, val_set, # TODO both current used versions
+    #                             optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4),
+    #                             criterion=None, early_stopping=3)
+    #train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4), criterion=None)
 
-    behavior_cloning = load_model("final_BC_state_dict", behavior_cloning)
-    acc, predicted_actions = train_bc_new.test_bc_accuracy(behavior_cloning, config.get_device(), val_set)
+    #behavior_cloning = load_model("final_BC_state_dict", behavior_cloning)
+    #acc, predicted_actions = train_bc_new.test_bc_accuracy(behavior_cloning, config.get_device(), val_set)
     #pred_array = np.array([p for batch in total_actions_predicted for p in batch])
     #jump_mask = (pred_array == config.Actions.JUMP_RIGHT.value)
     #jump_count = jump_mask.sum()
     #total_preds = pred_array.size
-    print(f'accuracy: {acc}')
+    #print(f'accuracy: {acc}')
     #print(f'predicted actions: {predicted_actions}')
     #print(f'jump count versus total predictions: {num_counts_jump_right} / {len(total_actions_predicted)}   Number of jump right of experts: {expert_jump_right}')
     q_net = q_model.QModel()
@@ -90,7 +90,7 @@ def run():
     #q_agent.train(train_set, val_set)
     #train_q.evaluate_model_and_vis(q_agent.model, config.get_device(), DataLoader(train_set, **config.PARAMS), num_episodes=5)
 
-    model = bcq_model.BCQModel()
+    model = bcq_model.BCQModel(input_shape=(1, 60, 60), num_actions=len(config.QActions))
     agent = DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
     buffer = ReplayBuffer(capacity=config.REPLAY_BUFFER_SIZE)
     train_loader = DataLoader(train_set, **config.PARAMS)
@@ -103,7 +103,7 @@ def run():
     bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001),
                        criterion=nn.CrossEntropyLoss(), early_stopping=10)
     agents = [bc_agent, q_agent, agent]
-    #run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
+    run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
 
 
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
