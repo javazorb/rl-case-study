@@ -265,7 +265,7 @@ class QEnvironment:
         if y > config.ENV_SIZE - 1:
             y = config.ENV_SIZE - 1
         #if self.environment[x, y] == config.WHITE or y >= config.ENV_SIZE: # Failed level due to collision
-        if y >= config.ENV_SIZE - 1:
+        if y > config.ENV_SIZE - 1:
             done = True
             reward -= 10
         if x in range(obstacle_start, obstacle_end) and y < obstacle_height + floor_height + 1: # Failed agent in obstacle
@@ -273,7 +273,7 @@ class QEnvironment:
             reward -= 10
         if self.jump_count > 15:
             reward -= 5
-        if y > config.ENV_SIZE - 1:
+        if y >= config.ENV_SIZE - 1:
             y = config.ENV_SIZE - 1
         self.current_position = (x, y)
         if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position

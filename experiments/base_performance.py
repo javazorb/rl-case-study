@@ -132,9 +132,9 @@ def predict_actions_unified(model, device, env_np):
             state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
             q_values = model(state_tensor)
             action = int(q_values.argmax().item())
-
+            if action == 1:
+                action = 3
             predicted_actions.append(action)
-
             next_state, reward, done, _ = curr_env.step(action)
             if done:
                 break

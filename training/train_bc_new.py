@@ -290,6 +290,7 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
 
     losses = []
     best_val_loss = float("inf")
+    best_jump_acc = -float("inf")
     stop_counter = 0
     best_model = copy.deepcopy(model)
 
@@ -393,9 +394,10 @@ def train(model, device, train_data, val_data, optimizer, criterion=None, early_
         print(f"[Epoch {epoch+1}] Test accuracy: {acc:.4f}")
 
         # Early stopping
-        if val_loss < best_val_loss:
-            print(f"New best validation loss: {val_loss:.4f} (prev {best_val_loss:.4f})")
+        if j_acc > best_jump_acc or val_loss <= best_val_loss and j_acc >= best_jump_acc:
+            print(f"New best validation loss: {val_loss:.4f} (prev {best_val_loss:.4f}), with jump_acc: {best_jump_acc:.3f}")
             best_val_loss = val_loss
+            best_jump_acc = j_acc
             stop_counter = 0
             best_model = copy.deepcopy(model)
             config.save_model(model, name=f"BC_{epoch+1}")

@@ -64,11 +64,11 @@ def run():
     #acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
     #train_dqn(train_set, val_set, steps=100000, batch_size=64, # TODO current used version
     #          gamma=0.99, lr=1e-4, capacity=100000, update_target=10000)
-    #behavior_cloning = base_model.BaseModel()
+    behavior_cloning = base_model.BaseModel()
     #train_bc_new.train_only_jump(behavior_cloning, config.get_device(), train_set, val_set, # TODO both current used versions
     #                             optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4),
     #                             criterion=None, early_stopping=3)
-    #train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4), criterion=None)
+    train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4), criterion=None)
 
     #behavior_cloning = load_model("final_BC_state_dict", behavior_cloning)
     #acc, predicted_actions = train_bc_new.test_bc_accuracy(behavior_cloning, config.get_device(), val_set)
