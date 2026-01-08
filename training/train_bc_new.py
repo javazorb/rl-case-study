@@ -519,7 +519,7 @@ def train_only_jump(model, device, train_data, val_data, optimizer, criterion=No
                 print(f"Early stopping after {epoch+1} epochs.")
                 break
 
-    config.save_model(best_model, name="final_BC")
+    config.save_model(best_model, name="final_BC_jumpy")
     print("Training complete.")
     return np.array(losses)
 

@@ -200,49 +200,129 @@ def evaluate(envs, model):
         lengths.append(length)
         trajectories.append(traj)
         successes.append(curr_env.current_position[0] >= config.ENV_SIZE - 1)
-    #    while not done:
-    #        if isinstance(model, BehavioralModel):
-    #            pass
-    #        else:
-    #            state_batch = torch.tensor(obs, dtype=torch.float32, device=config.get_device()).unsqueeze(1)
-    #            logits = model(state_batch)
-    #            action = logits.argmax().item()
-    #        obs, reward, done = env.step(action)
-    #        total_reward += reward
-    #        length += 1
-    #        traj.append(env.agent_pos)
-    #    successes.append(env.agent_pos[1] >= config.env_size - 1)
-    #    rewards.append(total_reward)
-    #    lengths.append(length)
-    #    trajectories.append(traj)
     return successes, rewards, lengths, trajectories, Counter(np.concatenate(all_actions))
 
 
-def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, envs, threshold, save_dir):
-    for i, env in enumerate(envs):
-        expert_path = dataset.reconstruct_path(env[0], env[1])
+def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, bc_jumpy_model, envs, save_dir, max_envs=10):
+    os.makedirs(save_dir, exist_ok=True)
 
-        bc_path  = evaluate(env[0], bc_model)
-        dqn_path = evaluate(env[0], dqn_model)
-        bcq_path = evaluate(env[0], bcq_model)
+    device = config.get_device()
+    bc_model.to(device).eval()
+    bc_jumpy_model.to(device).eval()
+    dqn_model.to(device).eval()
+    bcq_model.to(device).eval()
 
-        # 3-panel plot
-        fig, axs = plt.subplots(1, 3, figsize=(16, 6))
+    for i in range(min(max_envs, len(envs))):
+        env, env_actions = envs[i]  # IMPORTANT
+        expert_path = dataset.reconstruct_path(env, env_actions)
+
+        # Wrap single env so evaluate() works
+        single_env = [(env, env_actions)]
+
+        bc_traj  = evaluate(single_env, bc_model)[3][0]
+        bc_jumpy_traj = evaluate(single_env, bc_jumpy_model)[3][0]
+        dqn_traj = evaluate(single_env, dqn_model)[3][0]
+        bcq_traj = evaluate(single_env, bcq_model)[3][0]
+
+        fig, axs = plt.subplots(1, 4, figsize=(18, 6))
+
         panels = [
-            ("BC", bc_path[3][0]), # TODO debug because with evaluate above i get list of list of trajectories length 1
-            ("DQN", dqn_path[3][0]),
-            ("BCQ", bcq_path[3][0]),
+            ("BC", bc_traj),
+            ("BC_JUMPY", bc_jumpy_traj),
+            ("DQN", dqn_traj),
+            ("BCQ", bcq_traj),
         ]
 
         for ax, (name, path) in zip(axs, panels):
-            ax.imshow(env, cmap="gray")
-            ax.plot([x for _, x in expert_path], [y for y, _ in expert_path], "-g", label="Expert")
-            ax.plot([x for _, x in path],       [y for y, _ in path],       "-r", label=name)
+            ax.imshow(env, cmap="gray", origin="lower")
+            H = env.shape[0]
+            # Expert path (green)
+            #test1 = [y for y, x in expert_path][::-1]
+            #test2 = [x for y, x in expert_path][::-1]
+            ax.plot(
+                [y for y, x in expert_path][::-1],
+                [x for y, x in expert_path][::-1],
+                "-g", label="Expert"
+            )
+
+            # Agent path (red)
+            ax.plot(
+                [y for y, x in path][::-1],
+                [x for y, x in path][::-1],
+                "-r", label=name
+            )
+
+
             ax.set_title(name)
             ax.legend()
+            ax.axis("off")
 
-        plt.savefig(f"{save_dir}/compare_bc_dqn_bcq_env_{i}.png", dpi=200, bbox_inches='tight')
+        plt.suptitle(f"Environment {i}", fontsize=14)
+        plt.savefig(f"{save_dir}/compare_env_{i}.png", dpi=200, bbox_inches="tight")
         plt.close()
+
+
+
+def plot_reward_length_scatter(rewards, lengths, label, save_path):
+    plt.figure(figsize=(5, 4))
+    plt.scatter(lengths, rewards, alpha=0.5)
+    plt.xlabel("Trajectory length")
+    plt.ylabel("Total reward")
+    plt.title(label)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+
+
+def plot_length_hist(lengths, label, save_path):
+    plt.figure(figsize=(5, 4))
+    plt.hist(lengths, bins=20)
+    plt.xlabel("Trajectory length")
+    plt.ylabel("Count")
+    plt.title(label)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+
+
+def plot_action_distribution(action_dist, title, save_path):
+    # Normalize np.int64 → int
+    action_dist = {int(k): int(v) for k, v in action_dist.items()}
+
+    all_actions = list(range(len(config.QActions)))
+    all_actions[1] = 3
+    counts = [action_dist.get(a, 0) for a in all_actions]
+
+    plt.figure(figsize=(5, 4))
+    plt.bar(all_actions, counts)
+    plt.xlabel("Action")
+    plt.ylabel("Count")
+    plt.title(title)
+    plt.xticks(all_actions)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+
+
+
+
+def plot_success_rates(results, labels, save_path):
+    plt.figure(figsize=(8, 4))
+    offsets = {
+        "BC": 0.0,
+        "BC_JUMPY": 0.0,
+        "DQN": -0.02,
+        "BCQ": 0.02,
+    }
+
+    for successes, label in zip(results, labels):
+        y = np.array(successes, dtype=float) + offsets[label]
+        plt.plot(y, label=label, marker="o", markersize=2)
+
+    plt.xlabel("Environment index")
+    plt.ylabel("Success (0/1)")
+    plt.legend()
+    plt.grid()
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+
 
 
 
@@ -257,6 +337,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     bc_agent = agents[0]
     dqn_agent = agents[1]
     bcq_agent = agents[2]
+    bc_agent_jumpy = agents[3]
     # Train
     if train:
         bc_loss = train_bc_new.train(bc_agent.model, config.get_device(), train_data, val_data, bcq_agent.optimizer) #epoch losses
@@ -264,6 +345,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         bcq_losses = bcq.train_bcq(bcq_agent, buffer) # losses dict shape
     else:
         bc_agent.model = load_model("final_BC_state_dict", BaseModel())
+        bc_agent_jumpy.model = load_model("final_BC_jumpy_state_dict", BaseModel())
         dqn_model = QModel(num_actions=len(config.QActions), input_shape=(1, 60, 60))
         dqn_agent.model = load_model("final_DQN_state_dict", dqn_model)
         bcq_agent.model = load_model("final_BCQ_state_dict", BCQModel())
@@ -271,7 +353,38 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     # Evaluate
     #print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
     #small_test_data = Subset(test_data, list(range(10)))
-    for name, model in zip(["BC", "DQN", "BCQ"], [bc_agent.model, dqn_agent.model, bcq_agent.model]):
+    for name, model in zip(["BC", "DQN", "BCQ", "BC_JUMPY"], [bc_agent.model, dqn_agent.model, bcq_agent.model, bc_agent_jumpy.model]):
         successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model)
         print(
             f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}, Action Counts: {action_dist}")
+        plot_action_distribution(
+            action_dist,
+            f"{name} Action Distribution",
+            f"plots/{name}_actions.png"
+        )
+        plot_length_hist(lengths, f"{name} Length Distribution", f"plots/{name}_lengths.png")
+        plot_reward_length_scatter(rewards, lengths, f"{name} Reward Length Distribution", f"plots/{name}_reward_lengths.png")
+    print("========================================== Compare Models ==========================================")
+    compare_bc_dqn_bcq(
+        bc_agent.model,
+        dqn_agent.model,
+        bcq_agent.model,
+        bc_agent_jumpy.model,
+        test_data,
+        save_dir="plots/path_comparisons",
+        max_envs=5
+    )
+    print("========================================== Plot Success Rates ==========================================")
+    #print(set(evaluate(test_data, dqn_agent.model)[0]))
+    plot_success_rates(
+        [
+            evaluate(test_data, bc_agent.model)[0],
+            evaluate(test_data, bc_agent_jumpy.model)[0],
+            evaluate(test_data, dqn_agent.model)[0],
+            evaluate(test_data, bcq_agent.model)[0],
+        ],
+        ["BC", "BC_JUMPY", "DQN", "BCQ"],
+        "plots/success_per_env.png"
+    )
+
+

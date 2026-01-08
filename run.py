@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import numpy as np
@@ -68,7 +69,7 @@ def run():
     #train_bc_new.train_only_jump(behavior_cloning, config.get_device(), train_set, val_set, # TODO both current used versions
     #                             optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4),
     #                             criterion=None, early_stopping=3)
-    train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4), criterion=None)
+    #train_bc_new.train(behavior_cloning, config.get_device(), train_set, val_set, optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4), criterion=None)
 
     #behavior_cloning = load_model("final_BC_state_dict", behavior_cloning)
     #acc, predicted_actions = train_bc_new.test_bc_accuracy(behavior_cloning, config.get_device(), val_set)
@@ -102,7 +103,7 @@ def run():
     q_agent = DQNAgent(optimizer=optim.Adam(q_net.parameters(), lr=0.001), criterion=nn.MSELoss())
     bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001),
                        criterion=nn.CrossEntropyLoss(), early_stopping=10)
-    agents = [bc_agent, q_agent, agent]
+    agents = [bc_agent, q_agent, agent, copy.deepcopy(bc_agent)]
     run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
 
 
