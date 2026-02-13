@@ -104,17 +104,22 @@ def run():
     bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001),
                        criterion=nn.CrossEntropyLoss(), early_stopping=10)
     agents = [bc_agent, q_agent, agent, copy.deepcopy(bc_agent)]
+
     #run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
-    data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
-
-
+    #data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
+    multiple_obst_envs = generate_data.load_environments('data/multiple_obstacles')
+    optimal_paths = load_optimal_paths('data/multiple_obstacles')
+    multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
+    multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
+    #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
+    run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False)
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
 
-def sets_generation():
+def sets_generation(single=False):
     envs = generate_data.load_environments()
     optimal_paths = load_optimal_paths()
-    train_data, test_data, val_data = data.train_test_val_split(environments=envs, optimal_paths=optimal_paths)
+    train_data, test_data, val_data = data.train_test_val_split(environments=envs, optimal_paths=optimal_paths, single=single)
     data.save_dataset(train_data, 'train_data')
     data.save_dataset(test_data, 'test_data')
     data.save_dataset(val_data, 'val_data')
@@ -141,8 +146,8 @@ def save_optimal_paths(envs, save_dir='data'):
         json.dump(agent_positions_all_envs, file, indent=2)
 
 
-def load_optimal_paths():
-    with open('data' + os.sep + 'optimal_paths.json', 'r') as file:
+def load_optimal_paths(dir='data'):
+    with open(dir + os.sep + 'optimal_paths.json', 'r') as file:
         data = json.load(file)
     _, paths = map(list, zip(*data))
     return paths

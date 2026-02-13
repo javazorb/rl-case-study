@@ -18,7 +18,7 @@ def load_dataset(name, folder):
         return pickle.load(file)
 
 
-def train_test_val_split(environments, optimal_paths):
+def train_test_val_split(environments, optimal_paths, single=False):
     """ Splits the environments into i.i.d training, validation and test sets.
     Utilizes the generate_synth_state_actions before splitting
 
@@ -26,9 +26,13 @@ def train_test_val_split(environments, optimal_paths):
     :param optimal_paths:
     :return: tuple (train, validation, test)
     """
-
     envs_actions_list = generate_synth_state_actions(environments, optimal_paths)
     X, y = map(list, zip(*envs_actions_list))
+    if single:
+        x_train,x_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=config.RANDOM_SEED)
+        return (x_train, y_train)
+
+
     X_train_temp, X_test, y_train_temp, y_test = train_test_split(X, y, test_size=0.2, random_state=config.RANDOM_SEED)
     X_train, X_val, y_train, y_val = train_test_split(X_train_temp, y_train_temp, test_size=0.25, random_state=config.RANDOM_SEED)
 
