@@ -104,7 +104,8 @@ def run():
     bc_agent = BCAgent(optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.001),
                        criterion=nn.CrossEntropyLoss(), early_stopping=10)
     agents = [bc_agent, q_agent, agent, copy.deepcopy(bc_agent)]
-    run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
+    #run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
+    data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
 
 
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
@@ -119,21 +120,24 @@ def sets_generation():
     data.save_dataset(val_data, 'val_data')
 
 
-def data_gen():
-    generate_data.generate_and_save_environments(num_environments=10000, obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_END / 2, config.OBSTACLE_RANGE_HEIGHT_END / 2 + 1), floor_height_range=(config.FLOOR_HEIGHT_RANGE_END / 2, config.FLOOR_HEIGHT_RANGE_END / 2 + 1))
+def data_gen(nr_obstacles=1, visualize=True, save_directory='data/envs'):
+    generate_data.generate_and_save_environments(save_directory=save_directory, num_environments=100, nr_obstacles=nr_obstacles, visualize=visualize)
     #generate_data.generate_and_save_environments(num_environments=1000)
-    envs = generate_data.load_environments()
-    save_optimal_paths(envs)
+    envs = generate_data.load_environments(save_directory)
+    if nr_obstacles == 1:
+        save_optimal_paths(envs)
+    else:
+        save_optimal_paths(envs, save_dir=save_directory)
     return envs
 
 
-def save_optimal_paths(envs):
+def save_optimal_paths(envs, save_dir='data'):
     agent_positions_all_envs = []
     for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
                                 unit="Environments"):
         _, agent_positions = data.calculate_optimal_trajectory(env, index)
         agent_positions_all_envs.append((index, sorted(list(set(agent_positions)), key=lambda x: x[1])))
-    with open('data' + os.sep + 'optimal_paths.json', 'w') as file:
+    with open(save_dir + os.sep + 'optimal_paths.json', 'w') as file:
         json.dump(agent_positions_all_envs, file, indent=2)
 
 

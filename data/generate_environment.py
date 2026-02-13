@@ -35,24 +35,32 @@ def visualize_and_save_env(environment, save_path):
 
 def generate_and_save_environments(num_environments=100, save_directory='data/envs', visualize=True,
                                    floor_height_range=(config.FLOOR_HEIGHT_RANGE_START, config.FLOOR_HEIGHT_RANGE_END),
-                                   obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_START, config.OBSTACLE_RANGE_HEIGHT_END)):
+                                   obstacle_height_range=(config.OBSTACLE_RANGE_HEIGHT_START, config.OBSTACLE_RANGE_HEIGHT_END), nr_obstacles=1):
     if not os.path.exists(save_directory):
         os.makedirs(save_directory)
     for i in tqdm(range(num_environments), desc='Generating Environments', unit='Environment'):
-        environment = generate_environment(floor_height_range=floor_height_range, obstacle_height_range=obstacle_height_range)
+        environment = generate_environment(floor_height_range=floor_height_range, obstacle_height_range=obstacle_height_range, nr_obstacles=nr_obstacles)
         save_path = os.path.join(save_directory, f'environment{i}.npy')
         np.save(save_path, environment)
         if visualize:
-            if not os.path.exists('data/images'):
-                os.makedirs('data/images')
-            visualize_and_save_env(environment, save_path=os.path.join('data/images', f'environment{i}.png'))
+            vis_path = ''
+            if nr_obstacles > 1:
+                vis_path = save_directory + '/images'
+            else:
+                vis_path = 'data/images'
+            os.makedirs(vis_path, exist_ok=True)
+            visualize_and_save_env(environment, save_path=os.path.join(vis_path, f'environment{i}.png'))
 
 
 def load_environments(directory='data/envs'):
     environments = []
     #for filename in os.listdir(directory):
-    for filename in sorted(os.listdir(directory), key=lambda x:  int(''.join(filter(str.isdigit, x))) ): # Sorting by number
-        if filename.endswith('.npy'):
-            environment = np.load(os.path.join(directory, filename))
+    #for filename in sorted(os.listdir(directory), key=lambda x:  int(''.join(filter(str.isdigit, x))) ): # Sorting by number
+    for entry in sorted(
+            (e for e in os.scandir(directory) if e.is_file()),
+            key=lambda e: int(''.join(filter(str.isdigit, e.name)) or 0)
+    ):
+        if entry.name.endswith('.npy'):
+            environment = np.load(entry.path)
             environments.append(environment)
     return environments
