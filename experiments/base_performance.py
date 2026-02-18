@@ -228,7 +228,7 @@ def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, bc_jumpy_model, envs, sav
 
         panels = [
             ("BC", bc_traj),
-            ("BC_JUMPY", bc_jumpy_traj),
+            ("BC_Oversampled_Jumps", bc_jumpy_traj),
             ("DQN", dqn_traj),
             ("BCQ", bcq_traj),
         ]
@@ -307,7 +307,7 @@ def plot_success_rates(results, labels, save_path):
     plt.figure(figsize=(8, 4))
     offsets = {
         "BC": 0.0,
-        "BC_JUMPY": 0.0,
+        "BC_Oversampled_Jumps": 0.0,
         "DQN": -0.02,
         "BCQ": 0.02,
     }
@@ -353,7 +353,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     # Evaluate
     #print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
     #small_test_data = Subset(test_data, list(range(10)))
-    for name, model in zip(["BC", "DQN", "BCQ", "BC_JUMPY"], [bc_agent.model, dqn_agent.model, bcq_agent.model, bc_agent_jumpy.model]):
+    for name, model in zip(["BC", "DQN", "BCQ", "BC_Oversampled_Jumps"], [bc_agent.model, dqn_agent.model, bcq_agent.model, bc_agent_jumpy.model]):
         successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model)
         print(
             f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}, Action Counts: {action_dist}")
@@ -384,7 +384,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
             evaluate(test_data, dqn_agent.model)[0],
             evaluate(test_data, bcq_agent.model)[0],
         ],
-        ["BC", "BC_JUMPY", "DQN", "BCQ"],
+        ["BC", "BC_Oversampled_Jumps", "DQN", "BCQ"],
         f"plots/{experiment_name}_success_per_env.png"
     )
 
