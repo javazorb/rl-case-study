@@ -203,7 +203,7 @@ def evaluate(envs, model):
     return successes, rewards, lengths, trajectories, Counter(np.concatenate(all_actions))
 
 
-def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, bc_jumpy_model, envs, save_dir, max_envs=10):
+def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, bc_jumpy_model, envs, save_dir, max_envs=10, experiment_name="base_performance"):
     os.makedirs(save_dir, exist_ok=True)
 
     device = config.get_device()
@@ -258,7 +258,7 @@ def compare_bc_dqn_bcq(bc_model, dqn_model, bcq_model, bc_jumpy_model, envs, sav
             ax.axis("off")
 
         plt.suptitle(f"Environment {i}", fontsize=14)
-        plt.savefig(f"{save_dir}/compare_env_{i}.png", dpi=200, bbox_inches="tight")
+        plt.savefig(f"{save_dir}/{experiment_name}_compare_env_{i}.png", dpi=200, bbox_inches="tight")
         plt.close()
 
 
@@ -326,11 +326,11 @@ def plot_success_rates(results, labels, save_path):
 
 
 
-def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True):
+def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True, experiment_name="base_performance"):
     """
     Baseline Performance
     """
-    print("Running Experiment 1: Baseline Performance")
+    print(f"Running Experiment : {experiment_name}")
 
     test_loader = DataLoader(test_data, **config.PARAMS)
     # Initialize models
@@ -360,10 +360,10 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         plot_action_distribution(
             action_dist,
             f"{name} Action Distribution",
-            f"plots/{name}_actions.png"
+            f"plots/{experiment_name + name}_actions.png"
         )
         plot_length_hist(lengths, f"{name} Length Distribution", f"plots/{name}_lengths.png")
-        plot_reward_length_scatter(rewards, lengths, f"{name} Reward Length Distribution", f"plots/{name}_reward_lengths.png")
+        plot_reward_length_scatter(rewards, lengths, f"{name} Reward Length Distribution", f"plots/{experiment_name + name}_reward_lengths.png")
     print("========================================== Compare Models ==========================================")
     compare_bc_dqn_bcq(
         bc_agent.model,
@@ -372,7 +372,8 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         bc_agent_jumpy.model,
         test_data,
         save_dir="plots/path_comparisons",
-        max_envs=5
+        max_envs=5,
+        experiment_name=experiment_name
     )
     print("========================================== Plot Success Rates ==========================================")
     #print(set(evaluate(test_data, dqn_agent.model)[0]))
@@ -384,7 +385,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
             evaluate(test_data, bcq_agent.model)[0],
         ],
         ["BC", "BC_JUMPY", "DQN", "BCQ"],
-        "plots/success_per_env.png"
+        f"plots/{experiment_name}_success_per_env.png"
     )
 
 
