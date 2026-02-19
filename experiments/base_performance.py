@@ -34,38 +34,82 @@ def load_model(name, model):
 
 
 def predict_actions_window_model(model, device, env_np, crop_size=60):
+   """
+   Predicts one action per column using sliding-window input.
+   Works for both BC
+   """
+   model.eval()
+   env_np = env_np[0].astype(np.float32)
+
+   expert_actions = env_np[1]
+   actions = []
+   expert_path = dataset.reconstruct_path(env_np, expert_actions)
+
+   for (x, y) in expert_path:
+       if crop_size < env_np.shape[0]:
+           env_np = crop_env(env_np, (x, y), crop_size)
+           center = (crop_size // 2, crop_size // 2)
+       else:
+           center = (x, y)
+       window = dataset.extract_env_windows(
+           np.expand_dims(env_np, 0),
+           [center],#[(x, y)],
+           9#config.WINDOW_LEN
+       )[0]
+
+       # Fix accidental 60×61
+       if window.shape[1] == 61:
+           window = window[:, :60]
+
+       inp = torch.tensor(window, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(1)
+       logits = model(inp)
+       actions.append(int(logits.argmax().item()))
+
+   return np.array(actions)
+
+
+def predict_actions_window_model_crop(model, device, env_np, crop_size=60):
     """
-    Predicts one action per column using sliding-window input.
-    Works for both BC
+    BC sliding-window prediction with environment-level cropping
+    (shape-preserving for the CNN)
     """
     model.eval()
-    env_np = env_np[0].astype(np.float32)
 
-    expert_actions = env_np[1]
+    env_img, expert_actions = env_np
+    env_img = env_img.astype(np.float32)
+
+    expert_path = dataset.reconstruct_path(env_img, expert_actions)
     actions = []
-    expert_path = dataset.reconstruct_path(env_np, expert_actions)
 
     for (x, y) in expert_path:
-        if crop_size < env_np.shape[0]:
-            env_np = crop_env(env_np, (x, y), crop_size)
-            center = (crop_size // 2, crop_size // 2)
+        if crop_size < env_img.shape[0]:
+            cropped_env = crop_env(env_img, (x, y), crop_size)
+            center = (crop_size // 2, y)
         else:
+            cropped_env = env_img
             center = (x, y)
+
         window = dataset.extract_env_windows(
-            np.expand_dims(env_np, 0),
-            [center],#[(x, y)],
-            9#config.WINDOW_LEN
-        )[0]
+            np.expand_dims(cropped_env, 0),
+            [center],
+            9
+        )[0]  # MUST be (60, 9)
 
-        # Fix accidental 60×61
-        if window.shape[1] == 61:
-            window = window[:, :60]
+        # 🔒 HARD invariant
+        assert window.shape == (60, 9), window.shape
 
-        inp = torch.tensor(window, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(1)
+        inp = (
+            torch.tensor(window, dtype=torch.float32, device=device)
+            .unsqueeze(0)
+            .unsqueeze(1)
+        )
+
         logits = model(inp)
         actions.append(int(logits.argmax().item()))
 
     return np.array(actions)
+
+
 
 def predict_actions_unified(model, device, env_np, crop_size=60):
     """
@@ -192,7 +236,10 @@ def evaluate(envs, model, crop_size=60):
     all_actions = []
     for env, env_actions in envs:
         if isinstance(model, BaseModel):
-            actions = predict_actions_window_model(model, device, (env, env_actions), crop_size=crop_size)
+            if crop_size < env.shape[0]:
+                actions = predict_actions_window_model_crop(model, device, (env, env_actions), crop_size=crop_size)
+            else:
+                actions = predict_actions_window_model(model, device, (env, env_actions), crop_size=crop_size)
         elif isinstance(model, QModel):
             actions = predict_actions_unified(model, device, (env, env_actions), crop_size=crop_size)
         else:
@@ -344,20 +391,49 @@ def plot_success_rates(results, labels, save_path):
     plt.close()
 
 
-def crop_env(env, center, crop_size, pad_val=0):
-    h, w = env.shape
+#def crop_env(env, center, crop_size, pad_val=0):
+#    h, w = env.shape
+#    half = crop_size // 2
+#    cx, cy = center
+#    cropped = np.full((crop_size, crop_size), pad_val, dtype=env.dtype)
+#
+#    for i in range(crop_size):
+#        for j in range(crop_size):
+#            x = cx - half + i
+#            y = cy - half + j
+#            if 0 <= x < h and 0 <= y < w:
+#                cropped[i, j] = env[x, y]
+#
+#    return cropped
+def crop_env(env, agent_pos, crop_size):
+    """
+    Crop vertical context around agent and pad back to (60, 60)
+    """
+    H, W = env.shape
+    x, y = agent_pos
     half = crop_size // 2
-    cx, cy = center
-    cropped = np.full((crop_size, crop_size), pad_val, dtype=env.dtype)
 
-    for i in range(crop_size):
-        for j in range(crop_size):
-            x = cx - half + i
-            y = cy - half + j
-            if 0 <= x < h and 0 <= y < w:
-                cropped[i, j] = env[x, y]
+    top = max(0, x - half)
+    bottom = min(H, x + half)
 
-    return cropped
+    cropped = env[top:bottom, :]
+
+    pad_top = max(0, half - x)
+    pad_bottom = H - cropped.shape[0] - pad_top
+
+    # Pad with WALLS or EMPTY (choose one, but be consistent)
+    padded = np.pad(
+        cropped,
+        ((pad_top, pad_bottom), (0, 0)),
+        mode="constant",
+        constant_values=config.WHITE  # or 0 if empty
+    )
+
+    assert padded.shape == (H, W), padded.shape
+    return padded
+
+
+
 
 
 def plot_success_vs_crop(crop_sizes, success_rates, label, save_path):
@@ -410,6 +486,12 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
             for crop_size in crop_sizes:
                 successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model, crop_size=crop_size)
                 success_rates.append(np.mean(successes))
+                print(
+                    f"{name} | crop={crop_size} | "
+                    f"Success: {np.mean(successes):.2f}, "
+                    f"Avg Reward: {np.mean(rewards):.2f}, "
+                    f"Avg Length: {np.mean(lengths):.2f}"
+                )
         else:
             successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model)
         print(

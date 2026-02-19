@@ -112,7 +112,9 @@ def run():
     multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
     multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
     #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
-    run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False)
+    run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
+    run_experiment_1(agents, None, None, test_set, buffer, train=False,
+                     experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
 
