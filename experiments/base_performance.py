@@ -33,7 +33,7 @@ def load_model(name, model):
     return model
 
 
-def predict_actions_window_model(model, device, env_np):
+def predict_actions_window_model(model, device, env_np, crop_size=60):
     """
     Predicts one action per column using sliding-window input.
     Works for both BC
@@ -46,9 +46,14 @@ def predict_actions_window_model(model, device, env_np):
     expert_path = dataset.reconstruct_path(env_np, expert_actions)
 
     for (x, y) in expert_path:
+        if crop_size < env_np.shape[0]:
+            env_np = crop_env(env_np, (x, y), crop_size)
+            center = (crop_size // 2, crop_size // 2)
+        else:
+            center = (x, y)
         window = dataset.extract_env_windows(
             np.expand_dims(env_np, 0),
-            [(x, y)],
+            [center],#[(x, y)],
             9#config.WINDOW_LEN
         )[0]
 
@@ -62,7 +67,7 @@ def predict_actions_window_model(model, device, env_np):
 
     return np.array(actions)
 
-def predict_actions_unified(model, device, env_np):
+def predict_actions_unified(model, device, env_np, crop_size=60):
     """
     Predict predicted actions along the expert trajectory for BOTH:
     - Window-based models (BC, BCQ trained on windows)
@@ -129,7 +134,15 @@ def predict_actions_unified(model, device, env_np):
         curr_env.reset()
 
         for (x, y) in expert_path:
-            state_tensor = torch.tensor(curr_env.state, dtype=torch.float32).unsqueeze(0).to(device)
+            state = curr_env.state
+            if crop_size < state.shape[0]:
+                state = crop_env(
+                    state,
+                    curr_env.current_position,
+                    crop_size
+                )
+
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
             q_values = model(state_tensor)
             action = int(q_values.argmax().item())
             if action == 1:
@@ -142,7 +155,7 @@ def predict_actions_unified(model, device, env_np):
         return np.array(predicted_actions)
 
 
-def predict_actions_bcq(model, device, env, env_actions):
+def predict_actions_bcq(model, device, env, env_actions, crop_size=60):
     expert_path = dataset.reconstruct_path(env, env_actions)
     agent = bcq.DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
     curr_env = QEnvironment(
@@ -155,7 +168,14 @@ def predict_actions_bcq(model, device, env, env_actions):
     actions = []
     with torch.no_grad():
         for _ in range(config.MAX_STEPS):
-            action = agent.select_action(curr_env.state)
+            state = curr_env.state
+            if crop_size < state.shape[0]:
+                state = crop_env(
+                    state,
+                    curr_env.current_position,
+                    crop_size
+                )
+            action = agent.select_action(state)
             obs, reward, done, _ = curr_env.step(action)
             actions.append(action)
             if done:
@@ -323,6 +343,21 @@ def plot_success_rates(results, labels, save_path):
     plt.savefig(save_path, dpi=200)
     plt.close()
 
+
+def crop_env(env, center, crop_size, pad_val=0):
+    h, w = env.shape
+    half = crop_size // 2
+    cx, cy = center
+    cropped = np.full((crop_size, crop_size), pad_val, dtype=env.dtype)
+
+    for i in range(crop_size):
+        for j in range(crop_size):
+            x = cx - half + i
+            y = cy - half + j
+            if 0 <= x < h and 0 <= y < w:
+                cropped[i, j] = env[x, y]
+
+    return cropped
 
 
 
