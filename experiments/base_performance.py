@@ -182,7 +182,7 @@ def predict_actions_bcq(model, device, env, env_actions, crop_size=60):
                 break
     return np.array(actions)
 
-def evaluate(envs, model):
+def evaluate(envs, model, crop_size=60):
     successes, rewards, lengths, trajectories = [], [], [], []
     device = config.get_device()
     model.to(device)
@@ -192,11 +192,11 @@ def evaluate(envs, model):
     all_actions = []
     for env, env_actions in envs:
         if isinstance(model, BaseModel):
-            actions = predict_actions_window_model(model, device, (env, env_actions))
+            actions = predict_actions_window_model(model, device, (env, env_actions), crop_size=crop_size)
         elif isinstance(model, QModel):
-            actions = predict_actions_unified(model, device, (env, env_actions))
+            actions = predict_actions_unified(model, device, (env, env_actions), crop_size=crop_size)
         else:
-            actions = predict_actions_bcq(model, device, env, env_actions)
+            actions = predict_actions_bcq(model, device, env, env_actions, crop_size=crop_size)
         all_actions.append(actions)
         expert_path = dataset.reconstruct_path(env, env_actions)
         curr_env = QEnvironment(
@@ -360,6 +360,18 @@ def crop_env(env, center, crop_size, pad_val=0):
     return cropped
 
 
+def plot_success_vs_crop(crop_sizes, success_rates, label, save_path):
+    plt.figure(figsize=(5, 4))
+    plt.plot(crop_sizes, success_rates, marker="o")
+    plt.xlabel("Crop size")
+    plt.ylabel("Success rate")
+    plt.title(label)
+    plt.grid()
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+
+
+
 
 def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True, experiment_name="base_performance"):
     """
@@ -388,8 +400,18 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     # Evaluate
     #print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
     #small_test_data = Subset(test_data, list(range(10)))
+    if experiment_name == "cropped_environments":
+        crop_sizes = [48, 36, 24]
+
     for name, model in zip(["BC", "DQN", "BCQ", "BC_Oversampled_Jumps"], [bc_agent.model, dqn_agent.model, bcq_agent.model, bc_agent_jumpy.model]):
-        successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model)
+        success_rates = []
+
+        if experiment_name == "cropped_environments":
+            for crop_size in crop_sizes:
+                successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model, crop_size=crop_size)
+                success_rates.append(np.mean(successes))
+        else:
+            successes, rewards, lengths, trajectories, action_dist = evaluate(test_data, model)
         print(
             f"{name} Success Rate: {np.mean(successes):.2f}, Avg Reward: {np.mean(rewards):.2f}, Avg Length: {np.mean(lengths):.2f}, Action Counts: {action_dist}")
         plot_action_distribution(
@@ -399,6 +421,8 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         )
         plot_length_hist(lengths, f"{name} Length Distribution", f"plots/{name}_lengths.png")
         plot_reward_length_scatter(rewards, lengths, f"{name} Reward Length Distribution", f"plots/{experiment_name + name}_reward_lengths.png")
+        if experiment_name == "cropped_environments":
+            plot_success_vs_crop(crop_sizes, success_rates, f"{name} Success Rates", f"plots/{experiment_name + name}.png")
     print("========================================== Compare Models ==========================================")
     compare_bc_dqn_bcq(
         bc_agent.model,
