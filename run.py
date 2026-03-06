@@ -106,15 +106,15 @@ def run():
     agents = [bc_agent, q_agent, agent, copy.deepcopy(bc_agent)]
 
     #run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
-    #data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
+    data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
     multiple_obst_envs = generate_data.load_environments('data/multiple_obstacles')
     optimal_paths = load_optimal_paths('data/multiple_obstacles')
     multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
     multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
-    #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
+    # #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
     run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
-    run_experiment_1(agents, None, None, test_set, buffer, train=False,
-                     experiment_name='cropped_environments')
+    # run_experiment_1(agents, None, None, test_set, buffer, train=False,
+    #                 experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
 
@@ -139,12 +139,24 @@ def data_gen(nr_obstacles=1, visualize=True, save_directory='data/envs'):
 
 
 def save_optimal_paths(envs, save_dir='data'):
+    # agent_positions_all_envs = []
+    # for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
+    #                             unit="Environments"):
+    #     _, agent_positions = data.calculate_optimal_trajectory(env, index)
+    #     agent_positions_all_envs.append((index, sorted(list(set(agent_positions)), key=lambda x: x[1])))
+    # with open(save_dir + os.sep + 'optimal_paths.json', 'w') as file:
+    #     json.dump(agent_positions_all_envs, file, indent=2)
     agent_positions_all_envs = []
     for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
                                 unit="Environments"):
         _, agent_positions = data.calculate_optimal_trajectory(env, index)
-        agent_positions_all_envs.append((index, sorted(list(set(agent_positions)), key=lambda x: x[1])))
-    with open(save_dir + os.sep + 'optimal_paths.json', 'w') as file:
+        # convert to Python int for JSON
+        agent_positions_all_envs.append(
+            (index, sorted([(int(r), int(c)) for r, c in set(agent_positions)], key=lambda x: x[1]))
+        )
+
+    os.makedirs(save_dir, exist_ok=True)
+    with open(os.path.join(save_dir, 'optimal_paths.json'), 'w') as file:
         json.dump(agent_positions_all_envs, file, indent=2)
 
 

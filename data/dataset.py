@@ -77,6 +77,30 @@ def get_obst_positions(environment, floor_height):
     obst_positions = np.ravel(np.where(environment[floor_height + 1] == config.WHITE)) # ravel converts the 1,d arr to 1d
     return obst_positions[0], obst_positions[-1]
 
+def get_obst_positions_multiple(environment, floor_height):
+    row = environment[floor_height + 1]
+    white_positions = np.where(row == config.WHITE)[0]
+
+    if white_positions.size == 0:
+        return np.empty((0, 2), dtype=int)
+
+    # Detect gaps between consecutive white pixels
+    gaps = np.diff(white_positions)
+
+    # Indices where a new obstacle begins
+    split_indices = np.where(gaps > 1)[0]
+
+    # Start indices
+    starts = np.insert(white_positions[split_indices + 1], 0, white_positions[0])
+
+    # End indices
+    ends = np.append(white_positions[split_indices], white_positions[-1])
+
+    # Stack into (n, 2) array
+    obstacles = np.column_stack((starts, ends))
+
+    return obstacles
+
 
 def get_obstacle_height(environment, obst_start_pos):
     height = 0
@@ -86,7 +110,7 @@ def get_obstacle_height(environment, obst_start_pos):
     return height
 
 
-def calculate_optimal_trajectory(environment, env_index, save=True):
+def calculate_optimal_trajectory(environment, env_index, save=True, multiple=False):
     """
     Calculates the optimal trajectory to be used for the given environment and its id
     :param env_index:
@@ -95,62 +119,158 @@ def calculate_optimal_trajectory(environment, env_index, save=True):
     """
     obst_middle = math.ceil(config.OBSTACLE_WIDTH / 2)
     floor_height = get_env_floor_height(environment)
-    obst_start_pos, obst_end_pos = get_obst_positions(environment, floor_height)
-    previous_pos = 0
-    jump_start = obst_start_pos - get_obstacle_height(environment, obst_start_pos)
+    if not multiple:
+        obst_start_pos, obst_end_pos = get_obst_positions(environment, floor_height)
+        obstacles = [(obst_start_pos, obst_end_pos)]
+    else:
+        obstacles = get_obst_positions_multiple(environment, floor_height)
 
-    agent_positions = []  # To store agent positions for visualization or further processing
-    reached_floor = False
-    # Traverse environment rows
-    for row_index, row in enumerate(environment[floor_height + 1:], start=floor_height + 1):
-        if row_index == floor_height + 1:
-            if previous_pos == 0:
-                for i in range(len(row)):
-                    if i < jump_start:
-                        agent_positions.append((row_index, i))
-                        row[i] = config.AGENT
-                    else:
-                        previous_pos = i
-                        break
-                for i in range(obst_end_pos + get_obstacle_height(environment, obst_start_pos), len(row)):
-                    agent_positions.append((row_index, i))
-                    row[i] = config.AGENT
-        if previous_pos != 0 and previous_pos <= obst_start_pos + obst_middle:
-            # Move 1 step right and 1 step up until middle of the obstacle
-            start_pos = previous_pos
-            inital_height = row_index
-            for col_index in range(start_pos, len(row)):
-                if col_index < obst_start_pos + obst_middle - 1:
-                    agent_positions.append((inital_height, col_index))
-                    environment[inital_height, col_index] = config.AGENT
-                    previous_pos += 1
-                    inital_height += 1
-                else:
-                    break  # Stop when reaching the middle of the obstacle
-            # Decrease height and move 1 step right until back at floor height
-            current_agent_height = inital_height
-            start_pos = previous_pos
-            for col_index in range(start_pos, len(row)):
-                if current_agent_height > floor_height and not reached_floor:
-                    agent_positions.append((current_agent_height, col_index))
-                    environment[current_agent_height, col_index] = config.AGENT
-                    current_agent_height -= 1
-                else:
-                    reached_floor = True
-                    break  # Stop when back at floor height
+    # previous_pos = 0
+    # jump_start = obst_start_pos - get_obstacle_height(environment, obst_start_pos)
+    #
+    # agent_positions = []  # To store agent positions for visualization or further processing
+    # reached_floor = False
+    # # Traverse environment rows
+    # for row_index, row in enumerate(environment[floor_height + 1:], start=floor_height + 1):
+    #     if row_index == floor_height + 1:
+    #         if previous_pos == 0:
+    #             for i in range(len(row)):
+    #                 if i < jump_start:
+    #                     agent_positions.append((row_index, i))
+    #                     row[i] = config.AGENT
+    #                 else:
+    #                     previous_pos = i
+    #                     break
+    #             for i in range(obst_end_pos + get_obstacle_height(environment, obst_start_pos), len(row)):
+    #                 agent_positions.append((row_index, i))
+    #                 row[i] = config.AGENT
+    #     if previous_pos != 0 and previous_pos <= obst_start_pos + obst_middle:
+    #         # Move 1 step right and 1 step up until middle of the obstacle
+    #         start_pos = previous_pos
+    #         inital_height = row_index
+    #         for col_index in range(start_pos, len(row)):
+    #             if col_index < obst_start_pos + obst_middle - 1:
+    #                 agent_positions.append((inital_height, col_index))
+    #                 environment[inital_height, col_index] = config.AGENT
+    #                 previous_pos += 1
+    #                 inital_height += 1
+    #             else:
+    #                 break  # Stop when reaching the middle of the obstacle
+    #         # Decrease height and move 1 step right until back at floor height
+    #         current_agent_height = inital_height
+    #         start_pos = previous_pos
+    #         for col_index in range(start_pos, len(row)):
+    #             if current_agent_height > floor_height and not reached_floor:
+    #                 agent_positions.append((current_agent_height, col_index))
+    #                 environment[current_agent_height, col_index] = config.AGENT
+    #                 current_agent_height -= 1
+    #             else:
+    #                 reached_floor = True
+    #                 break  # Stop when back at floor height
+    # if save:
+    #     plt.imshow(environment, cmap='gray', origin='lower', vmin=0, vmax=255)
+    #     plt.axis('off')
+    #     #plt.show()
+    #     if not os.path.exists('data/images/optimal_paths'):
+    #         os.makedirs('data/images/optimal_paths')
+    #     plt.savefig(os.path.join('data/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight', pad_inches=0)
+    #     plt.close()
+    #
+    #     if not os.path.exists('data/optimal_paths'):
+    #         os.makedirs('data/optimal_paths')
+    #     save_path = os.path.join('data/optimal_paths' + os.sep, f'environment{env_index}.npy')
+    #     np.save(save_path, environment)
+    agent_positions = []  # To store agent positions
+    previous_pos = 0  # start at leftmost column
+    max_obst_height = 0
+    for obst_start, obst_end in obstacles:
+        current_height = get_obstacle_height(environment, obst_start)
+        if max_obst_height < current_height:
+            max_obst_height = current_height
+
+    jump_height = max_obst_height
+    # Traverse obstacles sequentially
+    # for i, (obst_start, obst_end) in enumerate(obstacles):
+    #     #jump_height = get_obstacle_height(environment, obst_start)
+    #     jump_start = obst_start - jump_height
+    #
+    #     # Move right on floor until jump start
+    #     for col in range(previous_pos, jump_start):
+    #         agent_positions.append((floor_height + 1, col))
+    #         environment[floor_height + 1, col] = config.AGENT
+    #
+    #     # Jump: move diagonally up to obstacle middle
+    #     current_row = floor_height + 1
+    #     current_col = jump_start
+    #     while current_col < obst_start + obst_middle:
+    #         agent_positions.append((current_row, current_col))
+    #         environment[current_row, current_col] = config.AGENT
+    #         current_row += 1
+    #         current_col += 1
+    #     if i + 1 < len(obstacles):
+    #         next_obst_start, next_obst_end = obstacles[i + 1]
+    #         next_jump_start = next_obst_start - jump_height
+    #     else:
+    #         next_jump_start = config.ENV_SIZE - 1
+    #     # Descend: move diagonally down until back at floor height
+    #     while current_row > floor_height + 1:
+    #         if current_col < next_jump_start - 1:
+    #             agent_positions.append((current_row, current_col))
+    #             environment[current_row, current_col] = config.AGENT
+    #             current_row -= 1
+    #             current_col += 1
+    #         else:
+    #             break
+    #
+    #     #previous_pos = obst_end + 1  # continue from end of obstacle
+    #     previous_pos = current_col
+    #     current_row = floor_height + 1
+    for i, (obst_start, obst_end) in enumerate(obstacles):
+        jump_height = get_obstacle_height(environment, obst_start)
+        jump_start = obst_start - jump_height
+
+        # Move on floor until jump start
+        for col in range(previous_pos, jump_start):
+            agent_positions.append((floor_height + 1, col))
+            environment[floor_height + 1, col] = config.AGENT
+
+        # Jump diagonally up to obstacle middle
+        current_row = floor_height + 1
+        current_col = jump_start
+        while current_col < obst_start + obst_middle:
+            agent_positions.append((current_row, current_col))
+            environment[current_row, current_col] = config.AGENT
+            current_row += 1
+            current_col += 1
+
+        # Descend diagonally until floor
+        while current_row > floor_height + 1:
+            agent_positions.append((current_row, current_col))
+            environment[current_row, current_col] = config.AGENT
+            current_row -= 1
+            current_col += 1
+
+        # Update previous_pos for next obstacle
+        previous_pos = current_col
+
+    # Move right after last obstacle to the end
+    for col in range(previous_pos, environment.shape[1]):
+        agent_positions.append((floor_height + 1, col))
+        environment[floor_height + 1, col] = config.AGENT
+
+    # Save image and array if requested
     if save:
-        plt.imshow(environment, cmap='gray', origin='lower', vmin=0, vmax=255)
-        plt.axis('off')
-        #plt.show()
         if not os.path.exists('data/images/optimal_paths'):
             os.makedirs('data/images/optimal_paths')
-        plt.savefig(os.path.join('data/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight', pad_inches=0)
+        plt.imshow(environment, cmap='gray', origin='lower', vmin=0, vmax=255)
+        plt.axis('off')
+        plt.savefig(os.path.join('data/images/optimal_paths', f'environment{env_index}.png'), bbox_inches='tight',
+                    pad_inches=0)
         plt.close()
 
         if not os.path.exists('data/optimal_paths'):
             os.makedirs('data/optimal_paths')
-        save_path = os.path.join('data/optimal_paths' + os.sep, f'environment{env_index}.npy')
-        np.save(save_path, environment)
+        np.save(os.path.join('data/optimal_paths', f'environment{env_index}.npy'), environment)
 
     return environment, agent_positions
 
