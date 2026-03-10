@@ -134,11 +134,11 @@ def data_gen(nr_obstacles=1, visualize=True, save_directory='data/envs'):
     if nr_obstacles == 1:
         save_optimal_paths(envs)
     else:
-        save_optimal_paths(envs, save_dir=save_directory)
+        save_optimal_paths(envs, save_dir=save_directory, multiple=True)
     return envs
 
 
-def save_optimal_paths(envs, save_dir='data'):
+def save_optimal_paths(envs, save_dir='data', multiple=False):
     # agent_positions_all_envs = []
     # for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
     #                             unit="Environments"):
@@ -149,7 +149,7 @@ def save_optimal_paths(envs, save_dir='data'):
     agent_positions_all_envs = []
     for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
                                 unit="Environments"):
-        _, agent_positions = data.calculate_optimal_trajectory(env, index)
+        _, agent_positions = data.calculate_optimal_trajectory(env, index, multiple=multiple)
         # convert to Python int for JSON
         agent_positions_all_envs.append(
             (index, sorted([(int(r), int(c)) for r, c in set(agent_positions)], key=lambda x: x[1]))
