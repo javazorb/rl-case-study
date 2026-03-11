@@ -150,6 +150,8 @@ def save_optimal_paths(envs, save_dir='data', multiple=False):
     for index, env in tqdm.tqdm(enumerate(envs), total=len(envs), desc="calculating optimal paths",
                                 unit="Environments"):
         _, agent_positions = data.calculate_optimal_trajectory(env, index, multiple=multiple)
+        #agent_positions = data.astar_platformer(env)
+        #_, agent_positions = data.generate_expert_path(env)
         # convert to Python int for JSON
         agent_positions_all_envs.append(
             (index, sorted([(int(r), int(c)) for r, c in set(agent_positions)], key=lambda x: x[1]))

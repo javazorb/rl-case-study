@@ -6,6 +6,7 @@ import os
 from sklearn.model_selection import train_test_split
 from config import Actions
 import pickle
+import heapq
 
 
 def save_dataset(dataset, name):
@@ -182,52 +183,28 @@ def calculate_optimal_trajectory(environment, env_index, save=True, multiple=Fal
     #     np.save(save_path, environment)
     agent_positions = []  # To store agent positions
     previous_pos = 0  # start at leftmost column
-    max_obst_height = 0
-    for obst_start, obst_end in obstacles:
-        current_height = get_obstacle_height(environment, obst_start)
-        if max_obst_height < current_height:
-            max_obst_height = current_height
 
-    jump_height = max_obst_height
-    # Traverse obstacles sequentially
-    # for i, (obst_start, obst_end) in enumerate(obstacles):
-    #     #jump_height = get_obstacle_height(environment, obst_start)
-    #     jump_start = obst_start - jump_height
-    #
-    #     # Move right on floor until jump start
-    #     for col in range(previous_pos, jump_start):
-    #         agent_positions.append((floor_height + 1, col))
-    #         environment[floor_height + 1, col] = config.AGENT
-    #
-    #     # Jump: move diagonally up to obstacle middle
-    #     current_row = floor_height + 1
-    #     current_col = jump_start
-    #     while current_col < obst_start + obst_middle:
-    #         agent_positions.append((current_row, current_col))
-    #         environment[current_row, current_col] = config.AGENT
-    #         current_row += 1
-    #         current_col += 1
-    #     if i + 1 < len(obstacles):
-    #         next_obst_start, next_obst_end = obstacles[i + 1]
-    #         next_jump_start = next_obst_start - jump_height
-    #     else:
-    #         next_jump_start = config.ENV_SIZE - 1
-    #     # Descend: move diagonally down until back at floor height
-    #     while current_row > floor_height + 1:
-    #         if current_col < next_jump_start - 1:
-    #             agent_positions.append((current_row, current_col))
-    #             environment[current_row, current_col] = config.AGENT
-    #             current_row -= 1
-    #             current_col += 1
-    #         else:
-    #             break
-    #
-    #     #previous_pos = obst_end + 1  # continue from end of obstacle
-    #     previous_pos = current_col
-    #     current_row = floor_height + 1
     for i, (obst_start, obst_end) in enumerate(obstacles):
+        #jump_height = get_obstacle_height(environment, obst_start)
         jump_height = get_obstacle_height(environment, obst_start)
+
+        # Look ahead for touching / overlapping obstacles
+        j = i + 1
+        while j < len(obstacles):
+
+            next_start, next_end = obstacles[j]
+            next_height = get_obstacle_height(environment, next_start)
+            jump_height = max(jump_height, next_height)
+            jump_length = 2 * jump_height
+            # if the next obstacle is within the landing zone
+            if next_start <= obst_start + jump_length:
+                jump_height = max(jump_height, next_height)
+                obst_end = next_end
+                j += 1
+            else:
+                break
         jump_start = obst_start - jump_height
+
 
         # Move on floor until jump start
         for col in range(previous_pos, jump_start):
@@ -244,7 +221,12 @@ def calculate_optimal_trajectory(environment, env_index, save=True, multiple=Fal
             current_col += 1
 
         # Descend diagonally until floor
-        while current_row > floor_height + 1:
+        if i + 1 < len(obstacles):
+            next_start, _ = obstacles[i + 1]
+        else:
+            next_start = environment.shape[1]
+
+        while current_row > floor_height + 1 and current_col < next_start - jump_height:
             agent_positions.append((current_row, current_col))
             environment[current_row, current_col] = config.AGENT
             current_row -= 1
@@ -340,3 +322,67 @@ def update_agent_pos(agent_start_positions, expert_paths):
         next_pos = expert_path[nex_pos_idx]
         new_positions.append(next_pos)
     return new_positions
+
+
+def astar_platformer(environment):
+
+    floor = get_env_floor_height(environment)
+    start = (floor+1, 0)
+
+    goal_col = environment.shape[1]-1
+
+    open_set = []
+    heapq.heappush(open_set, (0, start))
+
+    came_from = {}
+    cost = {start:0}
+
+    while open_set:
+
+        _, state = heapq.heappop(open_set)
+
+        r,c = state
+
+        if c >= goal_col:
+            break
+
+        neighbors = []
+
+        # move right
+        neighbors.append((r, c+1))
+
+        # jump up-right
+        neighbors.append((r+1, c+1))
+
+        # fall
+        neighbors.append((r-1, c+1))
+
+        for nr,nc in neighbors:
+
+            if nr < 0 or nr >= environment.shape[0] or nc >= environment.shape[1]:
+                continue
+
+            if environment[nr,nc] == 255:
+                continue
+
+            new_cost = cost[state] + 1
+
+            if (nr,nc) not in cost or new_cost < cost[(nr,nc)]:
+
+                cost[(nr,nc)] = new_cost
+                priority = new_cost + (goal_col-nc)
+
+                heapq.heappush(open_set,(priority,(nr,nc)))
+                came_from[(nr,nc)] = state
+
+    path = []
+
+    node = min(cost, key=lambda x: abs(x[1]-goal_col))
+
+    while node in came_from:
+        path.append(node)
+        node = came_from[node]
+
+    path.reverse()
+
+    return path
