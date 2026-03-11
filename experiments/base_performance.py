@@ -3,7 +3,7 @@ from collections import Counter
 
 import numpy as np
 import torch
-from torch import nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 
 import config
@@ -21,6 +21,7 @@ from models.q_model import QModel
 from models.base_model import BaseModel
 import models
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 def load_model(name, model):
@@ -96,15 +97,19 @@ def predict_actions_window_model_crop(model, device, env_np, crop_size=60):
         )[0]  # MUST be (60, 9)
 
         # 🔒 HARD invariant
-        assert window.shape == (60, 9), window.shape
+        #assert window.shape == (60, 9), window.shape
 
         inp = (
             torch.tensor(window, dtype=torch.float32, device=device)
             .unsqueeze(0)
             .unsqueeze(1)
         )
-
-        logits = model(inp)
+        current_height = cropped_env.shape[1]
+        pad_top = (config.ENV_SIZE - current_height) // 2
+        pad_bottom = config.ENV_SIZE - current_height - pad_top
+        padded_env = F.pad(inp, (0, 0, pad_top, pad_bottom), mode='constant', value=0)
+        logits = model(padded_env)
+        #logits = model(inp)
         actions.append(int(logits.argmax().item()))
 
     return np.array(actions)
@@ -405,35 +410,36 @@ def plot_success_rates(results, labels, save_path):
 #                cropped[i, j] = env[x, y]
 #
 #    return cropped
-def crop_env(env, agent_pos, crop_size):
-    """
-    Crop vertical context around agent and pad back to (60, 60)
-    """
+def crop_env(env, agent_pos, crop_size, pad_val=0):
+
     H, W = env.shape
     x, y = agent_pos
     half = crop_size // 2
 
-    top = max(0, x - half)
-    bottom = min(H, x + half)
+    top = x - half
+    bottom = x + half
+    left = y - half
+    right = y + half
 
-    cropped = env[top:bottom, :]
+    cropped = np.full((crop_size, crop_size), pad_val, dtype=env.dtype)
 
-    pad_top = max(0, half - x)
-    pad_bottom = H - cropped.shape[0] - pad_top
+    for i in range(crop_size):
+        for j in range(crop_size):
 
-    # Pad with WALLS or EMPTY (choose one, but be consistent)
-    padded = np.pad(
-        cropped,
-        ((pad_top, pad_bottom), (0, 0)),
-        mode="constant",
-        constant_values=config.WHITE  # or 0 if empty
-    )
+            src_x = top + i
+            src_y = left + j
 
-    assert padded.shape == (H, W), padded.shape
-    return padded
+            if 0 <= src_x < H and 0 <= src_y < W:
+                cropped[i, j] = env[src_x, src_y]
 
+    return cropped
 
 
+def crop_env_horizontally(env, start_x, goal_x):
+
+    cropped_env = env[:, start_x:goal_x]
+
+    return cropped_env
 
 
 def plot_success_vs_crop(crop_sizes, success_rates, label, save_path):
@@ -446,6 +452,37 @@ def plot_success_vs_crop(crop_sizes, success_rates, label, save_path):
     plt.savefig(save_path, dpi=200)
     plt.close()
 
+
+def plot_crop(env, agent_pos, crop_size, save_path):
+    H, W = env.shape
+    x, y = agent_pos
+    half = crop_size // 2
+
+    top = max(0, x - half)
+    bottom = min(H, x + half)
+
+    fig, ax = plt.subplots()
+
+    ax.imshow(env, cmap="gray", origin="lower")
+
+    rect = patches.Rectangle(
+        (0, top),           # x,y
+        W,                  # width
+        bottom - top,       # height
+        linewidth=2,
+        edgecolor='red',
+        facecolor='none'
+    )
+
+    ax.add_patch(rect)
+
+    ax.scatter([y], [x], c="blue", label="Agent")
+
+    ax.legend()
+    ax.set_title(f"Crop size = {crop_size}")
+
+    plt.savefig(save_path, dpi=200)
+    plt.close()
 
 
 
@@ -506,6 +543,27 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
         if experiment_name == "cropped_environments":
             plot_success_vs_crop(crop_sizes, success_rates, f"{name} Success Rates", f"plots/{experiment_name + name}.png")
     print("========================================== Compare Models ==========================================")
+    if experiment_name == "cropped_environments":
+
+        os.makedirs("plots/crop_debug", exist_ok=True)
+
+        # visualize first few environments
+        for i in range(min(5, len(test_data))):
+
+            env, env_actions = test_data[i]
+            expert_path = dataset.reconstruct_path(env, env_actions)
+
+            # use first expert position as agent location
+            agent_pos = expert_path[0]
+
+            for crop_size in crop_sizes:
+                plot_crop(
+                    env,
+                    agent_pos,
+                    crop_size,
+                    f"plots/crop_debug/env{i}_crop{crop_size}.png"
+                )
+
     compare_bc_dqn_bcq(
         bc_agent.model,
         dqn_agent.model,

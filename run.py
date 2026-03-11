@@ -106,15 +106,15 @@ def run():
     agents = [bc_agent, q_agent, agent, copy.deepcopy(bc_agent)]
 
     #run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
-    data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
-    multiple_obst_envs = generate_data.load_environments('data/multiple_obstacles')
-    optimal_paths = load_optimal_paths('data/multiple_obstacles')
-    multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
-    multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
+    #data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
+    #multiple_obst_envs = generate_data.load_environments('data/multiple_obstacles')
+    #optimal_paths = load_optimal_paths('data/multiple_obstacles')
+    #multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
+    #multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
     # #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
-    run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
-    # run_experiment_1(agents, None, None, test_set, buffer, train=False,
-    #                 experiment_name='cropped_environments')
+    #run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
+    run_experiment_1(agents, None, None, test_set, buffer, train=False,
+                     experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
 
