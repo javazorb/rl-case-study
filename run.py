@@ -39,8 +39,8 @@ def load_model(name, model):
 
 
 def run():
-    # envs = data_gen()
-    # sets_generation()
+    #envs = data_gen()
+    #sets_generation()
     behavior_cloning = bc_model.BehavioralModel()
     train_data = data.load_dataset('train_data', 'data')
     test_data = data.load_dataset('test_data', 'data')
@@ -113,9 +113,14 @@ def run():
     #multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
     # #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
     #run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
-    run_experiment_1(agents, None, None, test_set, buffer, train=False,
-                     experiment_name='cropped_environments')
+    #run_experiment_1(agents, None, None, test_set, buffer, train=False,
+    #                 experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
+    generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_top=12, visualize=True)
+    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
+    #                                      visualize=True)
+    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
+    #                                      crop_top=12, visualize=True)
 
 
 def sets_generation(single=False):

@@ -68,54 +68,78 @@ def load_environments(directory='data/envs'):
 def crop_environment(env,
                      crop_top=0,
                      crop_right=0,
-                     keep_size=60):
-    """
-    Crops environment but keeps final shape 60x60
-    """
+                     keep_size=60,
+                     pad_value=255):
+
     h, w = env.shape
-    # --- crop ---
     cropped = env.copy()
     if crop_top > 0:
-        cropped = cropped[crop_top:, :]
+        cropped = cropped[:h - crop_top, :]
+
     if crop_right > 0:
         cropped = cropped[:, :w - crop_right]
-    # --- pad back to 60x60 ---
     new_h, new_w = cropped.shape
-    padded = np.zeros((keep_size, keep_size), dtype=env.dtype)
+    padded = np.ones((keep_size, keep_size), dtype=env.dtype) * pad_value
     padded[keep_size - new_h:, :new_w] = cropped
+
     return padded
 
 
-def load_crop_and_save_environments(
+def crop_and_save_all_types(
         source_directory="data/envs",
-        save_directory="data/cropped_envs",
-        crop_top=0,
-        crop_right=0,
+        save_root="data/cropped_envs",
+        crop_top=12,
+        crop_right=12,
         visualize=True):
-    os.makedirs(save_directory, exist_ok=True)
-    image_dir = os.path.join(save_directory, "images")
-    os.makedirs(image_dir, exist_ok=True)
+
     files = [f for f in os.listdir(source_directory) if f.endswith(".npy")]
-    for i, file in enumerate(tqdm(files, desc="Cropping Envs")):
-        path = os.path.join(source_directory, file)
-        env = np.load(path)
-        cropped_env = crop_environment(
-            env,
-            crop_top=crop_top,
-            crop_right=crop_right,
-            keep_size=60
-        )
-        save_path = os.path.join(
-            save_directory,
-            f"environment{i}.npy"
-        )
-        np.save(save_path, cropped_env)
-        if visualize:
-            vis_path = os.path.join(
-                image_dir,
-                f"environment{i}.png"
+
+    types = {
+        "top": (crop_top, 0),
+        "side": (0, crop_right),
+        "both": (crop_top, crop_right),
+    }
+
+    for t in types:
+        npy_dir = os.path.join(save_root, t, "npy")
+        img_dir = os.path.join(save_root, t, "images")
+        os.makedirs(npy_dir, exist_ok=True)
+        os.makedirs(img_dir, exist_ok=True)
+
+    for i, file in enumerate(tqdm(files, desc="Cropping")):
+
+        env = np.load(os.path.join(source_directory, file))
+
+        for t, (ct, cr) in types.items():
+
+            pad_value = 255 if cr > 0 else 0
+
+            cropped = crop_environment(
+                env,
+                crop_top=ct,
+                crop_right=cr,
+                pad_value=pad_value
             )
-            visualize_and_save_env(
-                cropped_env,
-                save_path=vis_path
+
+            save_path = os.path.join(
+                save_root,
+                t,
+                "npy",
+                f"environment{i}.npy"
             )
+
+            np.save(save_path, cropped)
+
+            if visualize:
+
+                vis_path = os.path.join(
+                    save_root,
+                    t,
+                    "images",
+                    f"environment{i}.png"
+                )
+
+                visualize_and_save_env(
+                    cropped,
+                    save_path=vis_path
+                )
