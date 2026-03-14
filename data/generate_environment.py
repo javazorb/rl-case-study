@@ -65,7 +65,7 @@ def load_environments(directory='data/envs'):
             environments.append(environment)
     return environments
 
-def crop_environment(env,
+def crop_environment_old(env,
                      crop_top=0,
                      crop_right=0,
                      keep_size=60,
@@ -73,17 +73,52 @@ def crop_environment(env,
 
     h, w = env.shape
     cropped = env.copy()
+    # crop ceiling
     if crop_top > 0:
         cropped = cropped[:h - crop_top, :]
+        #cropped = cropped[crop_top:, :]
 
+    # crop path length
     if crop_right > 0:
         cropped = cropped[:, :w - crop_right]
+
     new_h, new_w = cropped.shape
+
     padded = np.ones((keep_size, keep_size), dtype=env.dtype) * pad_value
+
+    # IMPORTANT: place at bottom-left
     padded[keep_size - new_h:, :new_w] = cropped
 
     return padded
 
+
+def crop_environment(env,
+                     crop_top=0,
+                     crop_right=0,
+                     keep_size=60):
+    h, w = env.shape
+    cropped = env.copy()
+    # ---------- find top of content ----------
+    non_empty_rows = np.where(np.any(cropped != 0, axis=1))[0]
+    if len(non_empty_rows) > 0:
+        first_content_row = non_empty_rows[0]
+    else:
+        first_content_row = 0
+    # ---------- crop ceiling relative to content ----------
+    if crop_top > 0:
+        env[keep_size - crop_top:keep_size, :] = 255
+        return env
+        #new_top = min(first_content_row + crop_top, h)
+        #cropped = cropped[new_top:, :]
+    # ---------- crop right ----------
+    if crop_right > 0:
+        cropped = cropped[:, :w - crop_right]
+    new_h, new_w = cropped.shape
+    # use wall padding
+    padded = np.ones((keep_size, keep_size), dtype=env.dtype) * 255
+    # bottom-left placement
+    padded[keep_size - new_h:, :new_w] = cropped
+    return padded
 
 def crop_and_save_all_types(
         source_directory="data/envs",
@@ -112,13 +147,13 @@ def crop_and_save_all_types(
 
         for t, (ct, cr) in types.items():
 
-            pad_value = 255 if cr > 0 else 0
-
+            #pad_value = 255 if cr > 0 else 0
+            pad_value = 255
             cropped = crop_environment(
                 env,
                 crop_top=ct,
-                crop_right=cr,
-                pad_value=pad_value
+                crop_right=cr#,
+                #pad_value=pad_value
             )
 
             save_path = os.path.join(
