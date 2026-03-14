@@ -116,11 +116,11 @@ def run():
     #run_experiment_1(agents, None, None, test_set, buffer, train=False,
     #                 experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
-    generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_top=12, visualize=True)
+    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_top=12, visualize=True)
     #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
     #                                      visualize=True)
-    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
-    #                                      crop_top=12, visualize=True)
+    generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
+                                          crop_top=12, visualize=True)
 
 
 def sets_generation(single=False):

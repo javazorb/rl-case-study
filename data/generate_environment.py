@@ -105,9 +105,11 @@ def crop_environment(env,
     else:
         first_content_row = 0
     # ---------- crop ceiling relative to content ----------
-    if crop_top > 0:
+    if crop_top > 0 >= crop_right:
         env[keep_size - crop_top:keep_size, :] = 255
         return env
+    elif crop_top > 0 and crop_right > 0:
+        cropped[keep_size - crop_top:keep_size, :] = 255
         #new_top = min(first_content_row + crop_top, h)
         #cropped = cropped[new_top:, :]
     # ---------- crop right ----------
