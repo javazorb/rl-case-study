@@ -105,13 +105,8 @@ def crop_environment(env,
     else:
         first_content_row = 0
     # ---------- crop ceiling relative to content ----------
-    if crop_top > 0 >= crop_right:
-        env[keep_size - crop_top:keep_size, :] = 255
-        return env
-    elif crop_top > 0 and crop_right > 0:
+    if crop_top > 0:
         cropped[keep_size - crop_top:keep_size, :] = 255
-        #new_top = min(first_content_row + crop_top, h)
-        #cropped = cropped[new_top:, :]
     # ---------- crop right ----------
     if crop_right > 0:
         cropped = cropped[:, :w - crop_right]
@@ -125,11 +120,12 @@ def crop_environment(env,
 def crop_and_save_all_types(
         source_directory="data/envs",
         save_root="data/cropped_envs",
-        crop_top=12,
-        crop_right=12,
+        crop_top=0,
+        crop_right=0,
         visualize=True):
 
     files = [f for f in os.listdir(source_directory) if f.endswith(".npy")]
+    files = files[:100]
 
     types = {
         "top": (crop_top, 0),
@@ -148,11 +144,11 @@ def crop_and_save_all_types(
         env = np.load(os.path.join(source_directory, file))
 
         for t, (ct, cr) in types.items():
-
+            env_copy = env.copy()
             #pad_value = 255 if cr > 0 else 0
             pad_value = 255
             cropped = crop_environment(
-                env,
+                env_copy,
                 crop_top=ct,
                 crop_right=cr#,
                 #pad_value=pad_value

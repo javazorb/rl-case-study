@@ -116,11 +116,12 @@ def run():
     #run_experiment_1(agents, None, None, test_set, buffer, train=False,
     #                 experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
-    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_top=12, visualize=True)
-    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
-    #                                      visualize=True)
     generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
                                           crop_top=12, visualize=True)
+    cropped_data_set = generate_data.load_environments('data/cropped_envs')
+    # cropped_data_set = data.train_test_val_split(environments=cropped_data_set, optimal_paths=optimal_paths, single=True)
+    # cropped_data_set = dataset = list(zip(cropped_data_set[0], cropped_data_set[1]))
+    # #buffer = fill_buffer(list(DataLoader(cropped_data_set, **config.PARAMS))) #TODO test an implement
 
 
 def sets_generation(single=False):
