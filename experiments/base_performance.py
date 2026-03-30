@@ -116,7 +116,7 @@ def predict_actions_window_model_crop(model, device, env_np, crop_size=60):
 
 
 
-def predict_actions_unified(model, device, env_np, crop_size=60):
+def predict_actions_unified(model, device, env_np, crop_size=60, crop=False):
     """
     Predict predicted actions along the expert trajectory for BOTH:
     - Window-based models (BC, BCQ trained on windows)
@@ -178,7 +178,8 @@ def predict_actions_unified(model, device, env_np, crop_size=60):
         curr_env = QEnvironment(
             environment=env_img,
             size=config.ENV_SIZE,
-            start_pos=start_pos
+            start_pos=start_pos,
+            crop=crop
         )
         curr_env.reset()
 
@@ -204,13 +205,14 @@ def predict_actions_unified(model, device, env_np, crop_size=60):
         return np.array(predicted_actions)
 
 
-def predict_actions_bcq(model, device, env, env_actions, crop_size=60):
+def predict_actions_bcq(model, device, env, env_actions, crop_size=60, crop=False):
     expert_path = dataset.reconstruct_path(env, env_actions)
     agent = bcq.DiscreteBCQAgent(model=model, num_actions=100, threshold=0.1)
     curr_env = QEnvironment(
         environment=env,
         size=config.ENV_SIZE,
-        start_pos=expert_path[0]
+        start_pos=expert_path[0],
+        crop=crop
     )
     agent.model.eval()
     model.eval()
@@ -246,9 +248,9 @@ def evaluate(envs, model, crop_size=60, crop=False):
             else:
                 actions = predict_actions_window_model(model, device, (env, env_actions), crop_size=crop_size)
         elif isinstance(model, QModel):
-            actions = predict_actions_unified(model, device, (env, env_actions), crop_size=crop_size)
+            actions = predict_actions_unified(model, device, (env, env_actions), crop=crop)
         else:
-            actions = predict_actions_bcq(model, device, env, env_actions, crop_size=crop_size)
+            actions = predict_actions_bcq(model, device, env, env_actions, crop=crop)
         all_actions.append(actions)
         expert_path = dataset.reconstruct_path(env, env_actions)
         curr_env = QEnvironment(
@@ -272,7 +274,7 @@ def evaluate(envs, model, crop_size=60, crop=False):
         rewards.append(total_reward)
         lengths.append(length)
         trajectories.append(traj)
-        successes.append(curr_env.current_position[0] >= config.ENV_SIZE - 1)
+        successes.append(curr_env.current_position[0] >= curr_env.goal_position[0])
     return successes, rewards, lengths, trajectories, Counter(np.concatenate(all_actions))
 
 

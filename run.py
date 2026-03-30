@@ -138,8 +138,8 @@ def run():
                                                       single=True)
 
     # cropped_top_data_set = dataset = list(zip(cropped_top_data_set[0], cropped_top_data_set[1]))
-    # run_experiment_1(agents, None, None, cropped_top_data_set, buffer, train=False,
-    #                  experiment_name='cropped_environments_top')
+    run_experiment_1(agents, None, None, cropped_top_data_set, buffer, train=False,
+                     experiment_name='cropped_environments_top')
     cropped_side_data_set = dataset = list(zip(cropped_side_data_set[0], cropped_side_data_set[1]))
     run_experiment_1(agents, None, None, cropped_side_data_set, buffer, train=False,
                      experiment_name='cropped_environments_side')

@@ -271,9 +271,17 @@ class QEnvironment:
             self.jump_count += 1
             y += 1
 
+
         floor_height = dataset.get_env_floor_height(self.environment)
         obstacle_start, obstacle_end = dataset.get_obst_positions(self.environment, floor_height)
         obstacle_height = dataset.get_obstacle_height(self.environment, obstacle_start)
+        self.current_position = (x, y)
+        if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
+                or self.current_position[0] == self.goal_position[0]):
+            done = True
+            success = True
+            reward += 15
+            return self.state, reward, done, success
         if x in range(obstacle_start, obstacle_end) and y > floor_height + 1:
             reward += 5
         if y > floor_height + 1 and action != 3:  # Gravity
@@ -287,28 +295,26 @@ class QEnvironment:
         if y > config.ENV_SIZE - 1:
             done = True
             reward -= 10
-        if x in range(obstacle_start, obstacle_end) and y < obstacle_height + floor_height + 1: # Failed agent in obstacle
-            done = True
-            reward -= 10
+        # if x in range(obstacle_start, obstacle_end) and y < obstacle_height + floor_height :#+ 1: # Failed agent in obstacle
+        #     done = True
+        #     reward -= 10
         if self.jump_count > 15:
             reward -= 5
         if y >= config.ENV_SIZE - 1:
             y = config.ENV_SIZE - 1
-        self.current_position = (x, y)
-        if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
-                or self.current_position[0] == self.goal_position[0]):
-            done = True
-            success = True
-            reward += 15
+        # self.current_position = (x, y)
+        # if self.current_position[0] >= self.goal_position[0]:
+        #     done = True
+        #     success = True
+        #     reward += 15
+        #
+        # if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
+        #         or self.current_position[0] == self.goal_position[0]):
+        #     done = True
+        #     success = True
+        #     reward += 15
 
         self.state[0, self.current_position[1], self.current_position[0]] = config.AGENT
-        # Update state representation
-        #self.state.fill(0)
-        #self.state[0, floor_height, :] = self.environment[floor_height, :]
-        #self.state[0, self.goal_position[0], self.goal_position[1]] = 2  # goal
-        #self.state[0, self.start_position[0], self.start_position[1]] = 1  # start
-        #if 0 <= self.current_position[0] < config.ENV_SIZE and 0 <= self.current_position[1] < config.ENV_SIZE:
-        #    self.state[0, self.current_position[0], self.current_position[1]] = 3  # agent # maybe check for index out of bounds
         return self.state, reward, done, success
 
     def render(self, mode="rgb_array"):
