@@ -514,7 +514,7 @@ def run_experiment_1(agents, train_data, val_data, test_data, buffer, train=True
     # Evaluate
     #print(loss(bc_agent.model, config.get_device(), DataLoader(val_data, **config.PARAMS), nn.CrossEntropyLoss()))
     #small_test_data = Subset(test_data, list(range(10)))
-    if experiment_name == "cropped_environments":
+    if "cropped_environments" in experiment_name:
         crop_type = str.split(experiment_name, "_")[-1]
 
     for name, model in zip(["BC", "DQN", "BCQ", "BC_Oversampled_Jumps"], [bc_agent.model, dqn_agent.model, bcq_agent.model, bc_agent_jumpy.model]):
