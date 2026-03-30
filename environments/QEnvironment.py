@@ -8,10 +8,11 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 
 class QEnvironment:
-    def __init__(self, size=config.ENV_SIZE, environment=None, start_pos=None):
+    def __init__(self, size=config.ENV_SIZE, environment=None, start_pos=None, crop=False):
         self.good_action_cnt = 0
         self.jump_count = 0
         self.stuck_cnt = 0
+        self.crop = crop
         if environment is not None:
             environment = np.squeeze(environment)
         self.environment = environment
@@ -20,10 +21,14 @@ class QEnvironment:
         floor_height = dataset.get_env_floor_height(self.environment)
         if floor_height is None:
             floor_height = start_pos[1]
-        self.goal_position = (self.size - 1, floor_height + 1)
+        if not crop:
+            self.goal_position = (self.size - 1, floor_height + 1)
+        else:
+            self.goal_position = self.find_goal()
         #self.start_position = (floor_height + 1, 0)
         self.start_position = start_pos if start_pos is not None else (0, floor_height + 1)
         #self.start_position = start_pos if start_pos is not None else (0, floor_height + 1)
+
         self.current_position = self.start_position
         self.state = np.zeros((1, self.size, self.size), dtype=np.float32)
         #self.state = torch.from_numpy(self.environment)
@@ -40,7 +45,8 @@ class QEnvironment:
             floor_height = self.start_position[1]
         self.start_position = (0, floor_height + 1)
         self.current_position = self.start_position
-        self.goal_position = (self.size - 1, floor_height + 1)
+        if not self.crop:
+            self.goal_position = (self.size - 1, floor_height + 1)
         self.done = False
 
         self.good_action_cnt = 0
@@ -52,6 +58,16 @@ class QEnvironment:
         self.state[0, self.start_position[1], self.start_position[0]] = 50  # Mark start
         self.state[0, self.current_position[1], self.current_position[0]] = config.AGENT  # Agent marker
         return self.state
+
+    def find_goal(self):
+        floor_height = dataset.get_env_floor_height(self.environment)
+        if floor_height is None:
+            floor_height = self.start_position[1]
+        y = floor_height + 1
+        for x in range(self.size - 1, 0, -1):
+            if self.environment[y, x] != config.WHITE:
+                return (x, y)
+        return (self.size - 1, y)
 
     def step_og(self, action):
         if self.current_position == self.goal_position:
@@ -265,6 +281,9 @@ class QEnvironment:
         if y > config.ENV_SIZE - 1:
             y = config.ENV_SIZE - 1
         #if self.environment[x, y] == config.WHITE or y >= config.ENV_SIZE: # Failed level due to collision
+        if self.environment[y, x] == 255:
+            reward += -10
+            done = True
         if y > config.ENV_SIZE - 1:
             done = True
             reward -= 10

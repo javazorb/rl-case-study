@@ -29,6 +29,7 @@ from experiments.base_performance import run_experiment_1
 from training.train_q import ReplayBuffer
 from entitites.BCQ import DiscreteBCQAgent, fill_buffer
 from entitites.BCQ import train_bcq
+from pathlib import Path
 
 
 def load_model(name, model):
@@ -116,12 +117,35 @@ def run():
     #run_experiment_1(agents, None, None, test_set, buffer, train=False,
     #                 experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
-    generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
-                                          crop_top=12, visualize=True)
-    cropped_data_set = generate_data.load_environments('data/cropped_envs')
-    # cropped_data_set = data.train_test_val_split(environments=cropped_data_set, optimal_paths=optimal_paths, single=True)
-    # cropped_data_set = dataset = list(zip(cropped_data_set[0], cropped_data_set[1]))
-    # #buffer = fill_buffer(list(DataLoader(cropped_data_set, **config.PARAMS))) #TODO test an implement
+
+    #generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
+    #                                      crop_top=12, visualize=True)
+    # data_gen(visualize=True, save_directory='data/cropped_envs/top/npy', generate=False)
+    cropped_top_data_set = generate_data.load_environments('data/cropped_envs/top/npy')
+    optimal_paths_top = load_optimal_paths('data/cropped_envs/top/npy')
+    cropped_top_data_set = data.train_test_val_split(environments=cropped_top_data_set, optimal_paths=optimal_paths_top, single=True)
+
+    # data_gen(visualize=True, save_directory='data/cropped_envs/side/npy', generate=False)
+    cropped_side_data_set = generate_data.load_environments('data/cropped_envs/side/npy')
+    optimal_paths_side = load_optimal_paths('data/cropped_envs/side/npy')
+    cropped_side_data_set = data.train_test_val_split(environments=cropped_side_data_set, optimal_paths=optimal_paths_side,
+                                                     single=True)
+    # data_gen(visualize=True, save_directory='data/cropped_envs/both/npy', generate=False)
+    cropped_both_data_set = generate_data.load_environments('data/cropped_envs/both/npy')
+    optimal_paths_both = load_optimal_paths('data/cropped_envs/both/npy')
+    cropped_both_data_set = data.train_test_val_split(environments=cropped_both_data_set,
+                                                      optimal_paths=optimal_paths_both,
+                                                      single=True)
+
+    cropped_top_data_set = dataset = list(zip(cropped_top_data_set[0], cropped_top_data_set[1]))
+    run_experiment_1(agents, None, None, cropped_top_data_set, buffer, train=False,
+                     experiment_name='cropped_environments_top')
+    cropped_side_data_set = dataset = list(zip(cropped_side_data_set[0], cropped_side_data_set[1]))
+    run_experiment_1(agents, None, None, cropped_side_data_set, buffer, train=False,
+                     experiment_name='cropped_environments_side')
+    cropped_both_data_set = dataset = list(zip(cropped_both_data_set[0], cropped_both_data_set[1]))
+    run_experiment_1(agents, None, None, cropped_both_data_set, buffer, train=False,
+                     experiment_name='cropped_environments_both')
 
 
 def sets_generation(single=False):
@@ -133,12 +157,13 @@ def sets_generation(single=False):
     data.save_dataset(val_data, 'val_data')
 
 
-def data_gen(nr_obstacles=1, visualize=True, save_directory='data/envs'):
-    generate_data.generate_and_save_environments(save_directory=save_directory, num_environments=100, nr_obstacles=nr_obstacles, visualize=visualize)
-    #generate_data.generate_and_save_environments(num_environments=1000)
+def data_gen(nr_obstacles=1, visualize=True, save_directory='data/envs', generate=True):
+    if generate:
+        generate_data.generate_and_save_environments(save_directory=save_directory, num_environments=100, nr_obstacles=nr_obstacles, visualize=visualize)
+        #generate_data.generate_and_save_environments(num_environments=1000)
     envs = generate_data.load_environments(save_directory)
     if nr_obstacles == 1:
-        save_optimal_paths(envs)
+        save_optimal_paths(envs, save_dir=save_directory)
     else:
         save_optimal_paths(envs, save_dir=save_directory, multiple=True)
     return envs
@@ -169,7 +194,9 @@ def save_optimal_paths(envs, save_dir='data', multiple=False):
 
 
 def load_optimal_paths(dir='data'):
-    with open(dir + os.sep + 'optimal_paths.json', 'r') as file:
+    path = Path(dir) / 'optimal_paths.json'
+    with open(path, 'r') as file:
+    #with open(dir + os.sep + 'optimal_paths.json', 'r') as file:
         data = json.load(file)
     _, paths = map(list, zip(*data))
     return paths
