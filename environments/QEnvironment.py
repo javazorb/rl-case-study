@@ -275,6 +275,8 @@ class QEnvironment:
         floor_height = dataset.get_env_floor_height(self.environment)
         obstacle_start, obstacle_end = dataset.get_obst_positions(self.environment, floor_height)
         obstacle_height = dataset.get_obstacle_height(self.environment, obstacle_start)
+        if y >= config.ENV_SIZE - 1:
+            y = config.ENV_SIZE - 1
         self.current_position = (x, y)
         if  (x == config.ENV_SIZE - 1 or self.current_position == self.goal_position
                 or self.current_position[0] == self.goal_position[0]):
@@ -300,8 +302,7 @@ class QEnvironment:
         #     reward -= 10
         if self.jump_count > 15:
             reward -= 5
-        if y >= config.ENV_SIZE - 1:
-            y = config.ENV_SIZE - 1
+
         # self.current_position = (x, y)
         # if self.current_position[0] >= self.goal_position[0]:
         #     done = True

@@ -257,7 +257,7 @@ class DQNAgent(BaseAgent):
                             action = 3  # your remapping
                         action_distribution[action] += 1
 
-                        next_state, reward, done = curr_env.step(action)
+                        next_state, reward, done,_ = curr_env.step(action)
                         replay_buffer.push(curr_env.state.copy(), int(action), reward, next_state.copy(), done)
                         curr_env.state = next_state.copy()
 

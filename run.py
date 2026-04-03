@@ -64,9 +64,10 @@ def run():
     #                optimizer=optim.AdamW(behavior_cloning.parameters(), lr=0.0001), criterion=nn.CrossEntropyLoss())
     #behavior_cloning = load_model('final_BC_state_dict', behavior_cloning)
     #acc, total_actions_predicted, num_counts_jump_right = train_bc.test_accuracy(behavior_cloning, config.get_device(), test_set)
+
     #train_dqn(train_set, val_set, steps=100000, batch_size=64, # TODO current used version
     #          gamma=0.99, lr=1e-4, capacity=100000, update_target=10000)
-    behavior_cloning = base_model.BaseModel()
+    #behavior_cloning = base_model.BaseModel()
     #train_bc_new.train_only_jump(behavior_cloning, config.get_device(), train_set, val_set, # TODO both current used versions
     #                             optimizer=optim.AdamW(behavior_cloning.parameters(), lr=1e-4, weight_decay=1e-4),
     #                             criterion=None, early_stopping=3)
@@ -106,21 +107,21 @@ def run():
                        criterion=nn.CrossEntropyLoss(), early_stopping=10)
     agents = [bc_agent, q_agent, agent, copy.deepcopy(bc_agent)]
 
-    #run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
-    #data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
-    #multiple_obst_envs = generate_data.load_environments('data/multiple_obstacles')
-    #optimal_paths = load_optimal_paths('data/multiple_obstacles')
-    #multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
-    #multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
-    # #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
-    #run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
+    run_experiment_1(agents, train_set, val_set, test_set, buffer, train=False)
+    data_gen(nr_obstacles=2, visualize=True, save_directory='data/multiple_obstacles')
+    multiple_obst_envs = generate_data.load_environments('data/multiple_obstacles')
+    optimal_paths = load_optimal_paths('data/multiple_obstacles')
+    multiple_obst_data_set = data.train_test_val_split(environments=multiple_obst_envs, optimal_paths=optimal_paths, single=True)
+    multiple_obst_data_set = dataset = list(zip(multiple_obst_data_set[0], multiple_obst_data_set[1]))
+    #buffer = fill_buffer(list(DataLoader(multiple_obst_data_set, **config.PARAMS)))
+    run_experiment_1(agents, None, None, multiple_obst_data_set, buffer, train=False, experiment_name='multiple_obstacles')
     #run_experiment_1(agents, None, None, test_set, buffer, train=False,
     #                 experiment_name='cropped_environments')
     #train_bcq(agent, buffer, num_epochs=200, steps_per_epoch=1000, batch_size=32)
 
-    # generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
-    #                                       crop_top=12, visualize=True)
-    # data_gen(visualize=True, save_directory='data/cropped_envs/top/npy', generate=False)
+    generate_data.crop_and_save_all_types(source_directory="data/envs", save_root="data/cropped_envs", crop_right=12,
+                                          crop_top=12, visualize=True)
+    data_gen(visualize=True, save_directory='data/cropped_envs/top/npy', generate=False)
     cropped_top_data_set = generate_data.load_environments('data/cropped_envs/top/npy')
     optimal_paths_top = load_optimal_paths('data/cropped_envs/top/npy')
     cropped_top_data_set = data.train_test_val_split(environments=cropped_top_data_set, optimal_paths=optimal_paths_top, single=True)
